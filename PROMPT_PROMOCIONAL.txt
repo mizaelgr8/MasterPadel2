@@ -1,0 +1,79 @@
+
+# Prompt Detallado para Generador de Imágenes AI (Midjourney, DALL-E, etc.)
+
+## Objetivo:
+Crear una imagen promocional de alta calidad para redes sociales (formato historia de Instagram, 1080x1920px) que anuncie el Top 3 del ranking semanal de pádel del club "MÁSTER PÁDEL" para una categoría específica. La imagen debe ser moderna, profesional y llena de energía.
+
+---
+
+## **PROMPT PRINCIPAL (Copiar y pegar):**
+
+**Asunto:** Imagen promocional para ranking de pádel, estilo deportivo y moderno.
+
+**Estilo General:**
+- Fotografía de alta resolución con elementos gráficos superpuestos.
+- Paleta de colores: Dorado (#FFD700), azul oscuro/negro (#020817), blanco y acentos de azul eléctrico.
+- Iluminación dramática, con enfoque en la textura y el dinamismo.
+- Composición vertical (formato 1080x1920).
+
+**Fondo:**
+- Una pista de pádel moderna y oscura, vista desde una perspectiva baja y en ángulo.
+- El suelo de la pista debe tener un ligero reflejo.
+- En el aire, partículas de polvo o energía de color dorado flotando sutilmente, como si se hubieran levantado por el movimiento del juego.
+- Líneas de neón abstractas en azul eléctrico y dorado que atraviesan la imagen para añadir dinamismo.
+
+**Elementos de Texto (Tipografía y Contenido):**
+
+1.  **Logo del Club (Elemento Gráfico):**
+    - **Descripción:** Incluir el logo de "MÁSTER PÁDEL".
+    - **Ubicación:** Centrado en la parte superior.
+    - **Prompt para el logo (si la IA debe generarlo):** `Un logo circular con una "M" estilizada en el centro, rodeada por el texto "MÁSTER PÁDEL". La "M" está formada por líneas que simulan una pelota de pádel en movimiento. Colores: dorado y blanco sobre fondo oscuro.`
+
+2.  **Título Principal:**
+    - **Texto:** RANKING SEMANAL
+    - **Tipografía:** Fuente sans-serif muy gruesa y mayúscula (similar a "Bebas Neue" o "Impact").
+    - **Color:** Blanco con un sutil contorno dorado.
+    - **Ubicación:** Debajo del logo.
+
+3.  **Categoría:**
+    - **Texto:** [AQUÍ VA LA CATEGORÍA, ej: 3ra Categoría]
+    - **Tipografía:** Fuente sans-serif más ligera, en mayúsculas.
+    - **Color:** Dorado.
+    - **Ubicación:** Debajo del título principal, en un tamaño más pequeño.
+
+4.  **Podio / Top 3 (Elemento Central):**
+    - **Descripción:** Tres bloques de texto semi-transparentes (efecto "glass morphism") para los 3 primeros puestos, dispuestos en forma de podio (el 1º más alto y en el centro).
+    - **Bloque 1 (Primer Puesto):**
+        - **Número:** "1" grande y dorado.
+        - **Nombre:** `[NOMBRE DEL JUGADOR/PAREJA 1]` en blanco, fuente sans-serif negrita.
+        - **Estadística:** `[PUNTOS/PROMEDIO 1]` en dorado, más pequeño.
+    - **Bloque 2 (Segundo Puesto):**
+        - **Número:** "2" grande, color plata.
+        - **Nombre:** `[NOMBRE DEL JUGADOR/PAREJA 2]` en blanco.
+        - **Estadística:** `[PUNTOS/PROMEDIO 2]` en color plata.
+    - **Bloque 3 (Tercer Puesto):**
+        - **Número:** "3" grande, color bronce.
+        - **Nombre:** `[NOMBRE DEL JUGADOR/PAREJA 3]` en blanco.
+        - **Estadística:** `[PUNTOS/PROMEDIO 3]` en color bronce.
+
+5.  **Llamada a la Acción:**
+    - **Texto:** ¡Súmate y compite por la gloria!
+    - **Tipografía:** Fuente sans-serif.
+    - **Color:** Blanco.
+    - **Ubicación:** En la parte inferior, sobre una barra semi-transparente.
+
+**Composición Final:**
+Una imagen vertical impactante con el logo en la cima, seguido por los títulos. El foco principal es el podio con los nombres de los jugadores, que resalta sobre un fondo oscuro y dinámico de una pista de pádel. Las partículas y líneas de neón le dan un toque de energía y acción. El texto inferior cierra la composición con una invitación clara. La imagen debe sentirse premium y emocionante.
+
+---
+
+## **Instrucciones para ti:**
+
+1.  **Copia el "PROMPT PRINCIPAL"** de arriba.
+2.  **Reemplaza los textos entre corchetes `[...]`** con la información real del ranking de la categoría que quieras promocionar. Por ejemplo:
+    - `[AQUÍ VA LA CATEGORÍA, ej: 3ra Categoría]` -> `4ta Categoría`
+    - `[NOMBRE DEL JUGADOR/PAREJA 1]` -> `Mizael y David`
+    - `[PUNTOS/PROMEDIO 1]` -> `85.5 Prom.`
+3.  **Pega el prompt completo y modificado** en tu herramienta de IA generativa de imágenes (como Midjourney, DALL-E 3, etc.).
+4.  Si la IA no puede colocar el texto correctamente, genera primero la imagen de fondo y luego añade los textos con un editor de imágenes (como Canva, Photoshop, etc.) siguiendo la estructura descrita.
+

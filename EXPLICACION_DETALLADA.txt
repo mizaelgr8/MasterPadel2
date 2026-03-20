@@ -1,0 +1,134 @@
+
+DESCRIPCIÓN GENERAL DE LA APLICACIÓN MÁSTER PÁDEL
+
+Esta es una aplicación web completa para la gestión de rankings y torneos de un juego de mesa o similar. Permite registrar jugadores, partidas diarias, torneos completos y consultar historiales y clasificaciones. La aplicación cuenta con un sistema de roles para proteger la integridad de los datos, permitiendo al mismo tiempo una experiencia interactiva para todos los usuarios.
+
+--------------------------------------------------
+1. SISTEMA DE AUTENTICACIÓN Y ROLES
+--------------------------------------------------
+
+La aplicación está diseñada para ser de fácil acceso, con dos roles de usuario claramente definidos:
+
+- ROL INVITADO (Acceso por defecto):
+  - No se requiere usuario ni contraseña. Cualquier persona que entre a la aplicación accede automáticamente con este rol.
+  - Permisos: Tiene acceso de lectura a todas las pestañas (Ranking, Historial, Salón de la Fama).
+  - Funcionalidad Interactiva: Los invitados pueden "simular" la creación de eventos en las pestañas "Registrar" y "Torneo". Pueden seleccionar jugadores, generar rondas, introducir resultados y ver cómo se actualizan las tablas. Sin embargo, no pueden guardar, finalizar ni eliminar ningún dato, garantizando que la información oficial solo pueda ser manejada por un administrador.
+  - Para iniciar sesión como administrador, el invitado puede hacer clic en el ícono de avatar en la esquina superior derecha y seleccionar "Iniciar sesión".
+
+- ROL ADMINISTRADOR:
+  - Usuario: Admin
+  - Contraseña: Mingo
+  - Permisos: Tiene acceso completo a todas las funciones. Puede añadir/editar/eliminar jugadores, registrar y guardar partidas oficiales, cerrar meses de ranking, y gestionar, guardar y archivar torneos. El administrador es el único que puede modificar la base de datos.
+
+La lógica de autenticación se encuentra en `src/context/AuthContext.tsx`.
+
+--------------------------------------------------
+2. DESCRIPCIÓN DE LAS PESTAÑAS (VISTA INFERIOR)
+--------------------------------------------------
+
+La navegación principal se realiza a través de una barra inferior con efecto de cristal (glass morphism) para una experiencia moderna y optimizada para móviles.
+
+---
+PESTAÑA: RANKING (Icono: Gráfico de Barras)
+---
+Muestra las clasificaciones de los jugadores. Se divide en dos sub-pestañas:
+
+a) General:
+   - Muestra el ranking histórico acumulado.
+   - Tiene una vista para "Individual" y otra para "Parejas".
+   - El orden se basa en un sistema de méritos: primero por logros de torneos (Rey, Escudo, Espada), luego por medallas de eventos diarios (Oro, Plata, Bronce) y finalmente por promedio de puntos.
+   - Muestra un podio con los 3 primeros de cada modalidad.
+
+b) Mensual:
+   - Calcula y muestra el ranking basado en los eventos de un mes específico.
+   - Se puede seleccionar el mes que se quiere consultar.
+   - El ranking mensual se calcula con una fórmula que pondera el promedio de puntos y la cantidad de eventos jugados.
+   - El administrador tiene un botón para "Cerrar Mes", que guarda una foto permanente de ese ranking y asigna los logros (Rey, Escudo, Espada) a los 3 primeros jugadores/parejas.
+   - Archivo principal: `src/components/Ranking.tsx`.
+
+---
+PESTAÑA: REGISTRAR (Icono: Espada)
+---
+Permite registrar los resultados de los eventos diarios. Tanto invitados como administradores pueden acceder.
+
+a) Partida Automática:
+   - Ideal para eventos tipo "6 Loco". Se seleccionan los jugadores (8, 12 o 16) o parejas (4, 6, 8) y el sistema genera 6 rondas de partidas de forma aleatoria.
+   - Los usuarios pueden introducir los resultados de cada partida (ej: 4-2, 3-3).
+   - El sistema calcula automáticamente los puntos, victorias, empates y derrotas.
+   - Un evento iniciado se guarda como "en curso" y es visible para todos, permitiendo que un invitado lo prepare y un administrador lo revise.
+   - **Solo el administrador** puede "Finalizar y Guardar Evento" o "Descartar Partida".
+   - Archivo: `src/components/RegistroPartida.tsx`.
+
+b) Registro Manual:
+   - Permite introducir los resultados finales de un evento directamente.
+   - El usuario selecciona los jugadores/parejas e introduce manualmente los puntos y el G/E/P (Ganados/Empatados/Perdidos) de cada uno.
+   - **Solo el administrador** puede "Finalizar y Guardar Evento".
+   - Archivo: `src/components/RegistroManual.tsx`.
+
+---
+PESTAÑA: TORNEO (Icono: Trofeo)
+---
+Sección dedicada a la gestión de torneos completos.
+
+a) Torneo Actual:
+   - Permite crear y gestionar un torneo de 8 parejas.
+   - Un invitado puede configurar un torneo completo: seleccionar las 8 parejas, iniciar el torneo (lo que sortea los grupos), e introducir los resultados de la fase de grupos y las fases eliminatorias.
+   - El estado del torneo "en curso" es persistente y visible para todos los usuarios.
+   - **Solo el administrador** puede "Guardar y Archivar" el torneo para que pase al historial, o "Descartar Torneo" para eliminarlo permanentemente. También puede regresar a la fase de grupos si necesita corregir un resultado.
+
+b) Historial:
+   - Muestra una lista de todos los torneos finalizados y guardados.
+   - Se puede expandir cada torneo para ver todos los detalles: resultados de grupos, eliminatorias y la tabla de posiciones final.
+
+c) Salón de la Fama:
+   - Muestra un ranking de jugadores individuales basado en los trofeos (1º, 2º y 3º puesto) que han ganado en los torneos.
+   - Archivo principal: `src/components/Torneo.tsx`.
+
+---
+PESTAÑA: HISTORIAL (Icono: Reloj)
+---
+Permite consultar los resultados de eventos pasados que ya han sido guardados oficialmente.
+
+a) Diario:
+   - Se selecciona una fecha específica en el calendario.
+   - Muestra los resultados detallados del evento individual y/o de parejas que se jugó en ese día.
+
+b) Mensual:
+   - Muestra los rankings mensuales que ya han sido "cerrados" por el administrador.
+   - Es una vista histórica de las clasificaciones finales de cada mes.
+   - Archivo principal: `src/components/Historial.tsx`.
+   
+---
+PESTAÑA: CALENDARIO (Icono: Calendario) - (Solo Invitado)
+---
+Muestra un calendario con las fechas de los eventos programados para el mes en curso.
+   - Indica qué días hay "6 Loco Individual", "6 Loco Pareja Fija" y "Torneo Exprés".
+   - Incluye una leyenda para identificar cada tipo de evento.
+   - Archivo: `src/components/EventCalendar.tsx`
+
+---
+PESTAÑA: JUGADORES (Icono: Libro de Usuario) - (Solo Admin)
+---
+Sección exclusiva para la gestión de los participantes.
+
+- Añadir, Editar y Eliminar Jugador: Funciones básicas de gestión de la base de datos de jugadores.
+- Recalcular Estadísticas: Una herramienta de mantenimiento que resetea las estadísticas de todos los jugadores y las vuelve a calcular basándose en todo el historial de eventos individuales. Útil para corregir inconsistencias.
+- Muestra la cantidad total de jugadores registrados.
+- Archivo principal: `src/components/GestionJugadores.tsx`.
+
+--------------------------------------------------
+3. ESTRUCTURA DE DATOS EN FIREBASE
+--------------------------------------------------
+
+La aplicación utiliza la base de datos Firestore de Firebase para almacenar toda la información. Las colecciones principales son:
+
+- `players`: Guarda la información de cada jugador (nombre, estadísticas totales, medallas, logros).
+- `dailyEvents`: Guarda los resultados de cada evento diario individual.
+- `dailyPairEvents`: Guarda los resultados de cada evento diario en modalidad de parejas.
+- `monthlyRankings`: Almacena la "foto" de los rankings mensuales individuales cuando un admin cierra el mes.
+- `monthlyPairRankings`: Almacena la "foto" de los rankings mensuales de parejas.
+- `tournaments`: Guarda toda la información de un torneo una vez que ha sido completado y archivado.
+- `ongoingMatches`: Documento único que guarda el estado de una "Partida Automática" en curso.
+- `currentTournament`: Documento único que guarda el estado de un "Torneo" en curso.
+
+La conexión y configuración con Firebase se gestiona en el archivo `src/lib/firebase.ts`.

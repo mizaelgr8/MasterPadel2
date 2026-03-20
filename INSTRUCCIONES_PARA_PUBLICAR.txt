@@ -1,0 +1,55 @@
+¡HOLA! ESTE ARCHIVO ES PARA TI.
+
+Sé que encontrar la opción para descargar el código puede ser frustrante. Aquí tienes los pasos detallados para que no te pierdas.
+
+===============================================================
+== PASO 1: DESCARGAR EL PROYECTO COMO ARCHIVO .ZIP ==
+===============================================================
+
+Tu objetivo es descargar TODO el proyecto a tu computadora. Para ello, busca en la interfaz de Firebase Studio (la página en la que estamos ahora) una de estas opciones:
+
+Opción A: Un menú de "Archivo" o "File"
+1. Busca en la parte superior de la pantalla una barra de menú.
+2. Haz clic en "File" (o "Archivo").
+3. Dentro de ese menú, busca la opción que diga "Download .zip", "Descargar .zip" o "Descargar Código".
+
+Opción B: Un menú de Opciones del Proyecto (tres puntos o un engranaje)
+1. Busca un icono con tres puntos verticales (...) o un icono de engranaje (⚙️), normally cerca del nombre de tu proyecto.
+2. Haz clic en ese icono para abrir un menú.
+3. Busca la opción que diga "Download Code" o "Descargar Código".
+
+Opción C: Un botón de descarga directo
+1. Busca un botón con un icono de una flecha apuntando hacia abajo (⬇️).
+2. Este botón debería decir "Download" o "Descargar".
+
+Al hacer clic en una de estas opciones, se descargará un archivo .zip a tu computadora.
+
+===============================================================
+== PASO 2: SUBIR EL CÓDIGO A GITHUB ==
+===============================================================
+
+Una vez tengas el archivo .zip en tu computadora:
+
+1.  **Descomprímelo** en una carpeta.
+2.  Abre la "Terminal" o "Símbolo del sistema".
+3.  Navega a esa carpeta usando el comando `cd` (ej: `cd C:\Users\TuNombre\Desktop\master-padel-app`).
+4.  Ejecuta los siguientes comandos, uno por uno:
+    ```
+    git init
+    git add .
+    git commit -m "Versión inicial para publicar"
+    git branch -M master
+    git remote add origin https://github.com/mizaelgr8/MasterPadel.git
+    git push -u origin master
+    ```
+    (Si el comando `git remote add...` da error, no te preocupes y continúa).
+
+===============================================================
+== PASO 3: FINALIZAR EN FIREBASE APP HOSTING ==
+===============================================================
+
+1.  Vuelve a la página de Firebase App Hosting.
+2.  Recarga la página.
+3.  ¡Ahora sí! Tu repositorio "MasterPadel" aparecerá en la lista para que lo selecciones.
+
+Espero que estas instrucciones tan detalladas te sirvan. ¡Mucho ánimo!
