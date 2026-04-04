@@ -1,0 +1,59 @@
+
+===============================================================================
+PROYECTO: SISTEMA INTEGRAL DE GESTIÓN DEPORTIVA - MÁSTER PÁDEL
+===============================================================================
+
+ESTADO DEL PROYECTO: Producción / Freelance Ready
+TECNOLOGÍAS: Next.js 15 (App Router), TypeScript, Tailwind CSS, ShadCN UI, Firebase (Firestore & Auth).
+
+-------------------------------------------------------------------------------
+1. DESCRIPCIÓN GENERAL
+-------------------------------------------------------------------------------
+Plataforma web de alto rendimiento (SaaS style) diseñada para la automatización de clubes de pádel o centros deportivos. La aplicación resuelve la complejidad de organizar jornadas de juego, calcular rankings competitivos, gestionar torneos y administrar la contabilidad diaria en una única interfaz optimizada para móviles y pantallas gigantes (TV).
+
+-------------------------------------------------------------------------------
+2. ARQUITECTURA TÉCNICA Y CONEXIONES
+-------------------------------------------------------------------------------
+- Frontend: React con Next.js 15 utilizando Server Components para optimización y Client Components para interactividad en tiempo real.
+- Base de Datos: Firebase Firestore (NoSQL). Implementación de "Real-time Snapshots" para que los marcadores y rankings se actualicen instantáneamente en todos los dispositivos sin recargar la página.
+- Estilos: Tailwind CSS con una estética de "Glass Morphism" (efectos de cristal y desenfoque) y un tema oscuro premium con acentos dorados.
+- Gestión de Estado: React Context API para el manejo de autenticación, roles de usuario y categorías de juego.
+
+-------------------------------------------------------------------------------
+3. FUNCIONALIDADES CLAVE
+-------------------------------------------------------------------------------
+
+A. SISTEMA DE RANKING INTELIGENTE:
+- Algoritmo de mérito: Clasificación basada en una jerarquía de logros (👑 Reyes, 🛡️ Escudos, ⚔️ Espadas) y medallas diarias (🥇, 🥈, 🥉).
+- Historial Mensual: Función de "Cerrar Mes" que genera una captura permanente del ranking y distribuye premios a los perfiles de los jugadores.
+- Soporte Multi-Categoría: Rankings independientes para 3ra, 4ta y 5ta categoría.
+
+B. AUTOMATIZACIÓN DE JORNADAS (MODOS DE JUEGO):
+- 6 Loco (Individual): Algoritmo de rotación aleatoria que genera 7 rondas de partidos evitando repetir parejas y rivales.
+- Americano (Parejas Fijas): Gestión de torneos relámpago con tablas de posiciones automáticas.
+- Modo Elevador: Sistema de subida y bajada de canchas basado en resultados de cada set.
+- Asignación de Canchas: Distribución automática de pistas (Cancha 1, 2, 3, 4) con visualización destacada.
+
+C. MÓDULO DE TORNEOS PROFESIONALES:
+- Gestión de torneos de 8 parejas con Fase de Grupos (A y B).
+- Generación automática de llaves de Eliminatorias (Semifinales, Final de Oro y Final de Plata).
+- Salón de la Fama: Acumulación histórica de trofeos por jugador.
+
+D. SEÑALIZACIÓN DIGITAL (MODO PROYECTOR TV):
+- Interfaz diseñada específicamente para Smart TVs o proyectores en el club.
+- Vistas conmutables: Marcadores en vivo, Rankings Generales por columna y Pantalla Publicitaria de alta fidelidad.
+
+E. ADMINISTRACIÓN FINANCIERA Y RESERVAS:
+- Control de Caja: Registro de ingresos y egresos diarios con balance neto mensual.
+- Gestión de Reservas: Cuadrícula horaria interactiva para las 4 pistas, con control de pagos (efectivo, transferencia, tarjeta) y alquiler de equipamiento.
+- Reservas Recurrentes: Función para duplicar reservas durante todo un mes con un solo clic.
+
+-------------------------------------------------------------------------------
+4. VALOR AGREGADO COMO DESARROLLADOR
+-------------------------------------------------------------------------------
+- UX/UI: Diseño "Mobile First" pensado para el uso rápido en cancha.
+- Escalabilidad: Estructura preparada para añadir múltiples clubes o más categorías de juego.
+- Robustez: Manejo de errores contextuales y sistema de roles (Admin/Staff/Invitado) para proteger la integridad de los datos financieros.
+
+Este proyecto demuestra el dominio de aplicaciones web modernas que consumen servicios en la nube y gestionan lógica de negocio compleja de forma fluida.
+===============================================================================
