@@ -1,0 +1,54 @@
+
+===============================================================================
+KIT DE PRESENTACIÓN PROFESIONAL - MÁSTER PÁDEL
+===============================================================================
+
+Como no puedo generar archivos .zip directamente, aquí tienes todo lo necesario 
+para que presentes este proyecto como un experto.
+
+-------------------------------------------------------------------------------
+1. CÓMO DESCARGAR EL PROYECTO COMPLETO (.ZIP)
+-------------------------------------------------------------------------------
+Para obtener el archivo con todo el código fuente:
+1. Ve al panel lateral o superior de Firebase Studio.
+2. Busca el icono de "File" (Archivo) o los tres puntos de opciones del proyecto.
+3. Selecciona "Download .zip" o "Descargar Código".
+Esto te entregará un paquete listo para subir a GitHub o entregar a un cliente.
+
+-------------------------------------------------------------------------------
+2. PROMPT DE ORO PARA TU PORTAFOLIO (MOCKUPS IA)
+-------------------------------------------------------------------------------
+Copia y pega este prompt en Midjourney, DALL-E 3 o Leonardo.ai para obtener la 
+imagen principal de tu presentación:
+
+"Professional 3D mockup of a sports management mobile app on a high-end smartphone. 
+The app displays a golden 'Master Padel' logo and a sleek dark mode dashboard with 
+neon blue and gold accents. The phone is floating in a modern, dark padel court 
+with dramatic volumetric lighting, lens flare, and golden dust particles. 
+High-end tech aesthetic, 8k resolution, photorealistic, cinematic, commercial 
+photography style."
+
+-------------------------------------------------------------------------------
+3. LAS 5 CAPTURAS QUE DEBES MOSTRAR (TIPS)
+-------------------------------------------------------------------------------
+Para que tu portafolio destaque, toma screenshots de estas vistas específicas:
+1. EL PODIO: En la pestaña Ranking, captura el podio con las coronas doradas. 
+   Es lo más visual de la app.
+2. PANTALLA PUBLICITARIA: Entra al Modo Proyector y selecciona "Publicidad". 
+   Esa vista gigante del logo vende el proyecto como algo corporativo y serio.
+3. GESTIÓN DE RESERVAS: Muestra la cuadrícula de las 4 pistas. Demuestra que 
+   puedes manejar sistemas de horarios complejos.
+4. REGISTRO DE PARTIDAS: Captura el momento en que se ven las canchas en azul. 
+   Refleja la utilidad real para un club.
+5. LOGIN PREMIUM: La pantalla de inicio con el degradado radial y el logo 
+   dorado da una primera impresión de alto nivel.
+
+-------------------------------------------------------------------------------
+4. RECURSOS ADICIONALES
+-------------------------------------------------------------------------------
+- Logo Oficial: https://i.postimg.cc/jd36nffT/Master-padel-(1).png
+- Documentación Técnica: Revisa el archivo PROYECTO_MASTER_PADEL_DETALLES.txt 
+  para copiar los textos descriptivos.
+
+¡Mucho éxito en tus ventas como freelancer!
+===============================================================================
