@@ -211,7 +211,7 @@ const RegistroPartida = () => {
   };
 
   const generate6locoParejasRounds = (): Round[] => {
-    const numRounds = 6;
+    const numRounds = 7;
     const rounds: Round[] = [];
     const n = fixedPairs.length;
     if (n < 2) return [];
@@ -552,7 +552,7 @@ const RegistroPartida = () => {
             <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="6locoParejas">6 Loco (Parejas)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
           </div>
           {modality === '6loco' ? (
-            <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
+            <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === sp.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
           ) : (
             <div className="space-y-4">
               <div><Label>Crear Pareja ({fixedPairs.length})</Label><div className="flex gap-2 mt-2">
