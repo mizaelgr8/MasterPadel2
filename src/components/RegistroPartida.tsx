@@ -239,7 +239,7 @@ const RegistroPartida = () => {
 
   const generateRounds = async () => {
     let newDocData: Omit<OngoingMatch, 'id'>;
-    const finalName = eventName || (modality === '6loco' ? '6 Loco' : 'Americano');
+    const finalName = eventName || (modality === '6loco' ? '6 Loco' : 'Liga');
     if (modality === '6loco') {
         if (selectedPlayers.length < 8 || selectedPlayers.length % 4 !== 0) {
             toast({ title: "Error", description: "Se necesitan 8, 12 o 16 jugadores.", variant: "destructive" });
@@ -470,7 +470,7 @@ const RegistroPartida = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><Label>Fecha</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
             <div><Label>Nombre del Evento</Label><Input placeholder="Mizael, Mañana, etc." value={eventName} onChange={e => setEventName(e.target.value)} /></div>
-            <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="parejaFija">Americano (Parejas)</SelectItem></SelectContent></Select></div>
+            <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
           </div>
           {modality === '6loco' ? (
             <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
