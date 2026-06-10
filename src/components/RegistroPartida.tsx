@@ -324,7 +324,7 @@ const RegistroPartida = () => {
         });
     } else {
         selectedMatch.fixedPairs.forEach(pair => {
-            stats[pair.id] = { pairId: pair.id, name: pair.name, player1: pair.player1, player2: pair.player2, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
+            stats[pair.id] = { pairId: pair.id, name: `${pair.player1.name} & ${pair.player2.name}`, player1: pair.player1, player2: pair.player2, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
         });
     }
 
@@ -552,7 +552,7 @@ const RegistroPartida = () => {
             <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="6locoParejas">6 Loco (Parejas)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
           </div>
           {modality === '6loco' ? (
-            <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === sp.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
+            <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
           ) : (
             <div className="space-y-4">
               <div><Label>Crear Pareja ({fixedPairs.length})</Label><div className="flex gap-2 mt-2">
