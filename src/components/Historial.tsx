@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -248,7 +249,7 @@ const Historial = () => {
                             <CardTitle className="text-xl flex items-center gap-2">
                                 <Users className="h-5 w-5 text-blue-400"/> {event.name || "Evento de Parejas"}
                             </CardTitle>
-                            <CardDescription>Modalidad: Pareja Fija / Americano</CardDescription>
+                            <CardDescription>Modalidad: {event.modality === '6locoParejas' ? '6 Loco Parejas' : 'Pareja Fija / Liga'}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>

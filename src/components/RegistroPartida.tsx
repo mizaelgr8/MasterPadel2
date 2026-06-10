@@ -441,6 +441,20 @@ const RegistroPartida = () => {
         } else if (selectedMatch.modality === '6locoParejas') {
             const results: DailyPairResult[] = calculatedResults.map(r => ({ pairId: r.pairId, player1: r.player1, player2: r.player2, points: r.points, g: r.g, p: r.p, e: r.e }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6locoParejas', category });
+            // Award individual medals for 6 Loco Parejas
+            for(let i=0; i<Math.min(results.length, 3); i++) {
+                const res = results[i];
+                const playerIds = [res.player1.id, res.player2.id];
+                for(const pid of playerIds) {
+                    const pRef = doc(db, 'players', pid);
+                    const pSnap = await getDoc(pRef);
+                    if(pSnap.exists()) {
+                        const medals = (pSnap.data() as Player).medals || { gold: 0, silver: 0, bronze: 0 };
+                        if(i===0) medals.gold++; else if(i===1) medals.silver++; else medals.bronze++;
+                        batch.update(pRef, { medals });
+                    }
+                }
+            }
         } else {
             const results: DailyPairResult[] = americanoRanking.map(r => ({ pairId: r.pairId, player1: r.team.player1, player2: r.team.player2, points: r.points, g: r.matchesWon, p: r.matchesLost, e: 0 }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'parejaFija', category });

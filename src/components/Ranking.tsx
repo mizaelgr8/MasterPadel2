@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -117,6 +116,22 @@ const RankingGeneralContent = () => {
                 });
             });
             
+            // Add medals from 6 Loco Parejas to individual rankings
+            dailyPairEvents.filter(e => e.modality === '6locoParejas').forEach(event => {
+                const sortedResults = [...event.results].sort((a, b) => b.points - a.points);
+                sortedResults.forEach((result, index) => {
+                    if (index > 2) return;
+                    [result.player1.id, result.player2.id].forEach(pid => {
+                        const stats = playerStats[pid];
+                        if (stats) {
+                            if (index === 0) stats.medals.gold += 1;
+                            else if (index === 1) stats.medals.silver += 1;
+                            else if (index === 2) stats.medals.bronze += 1;
+                        }
+                    });
+                });
+            });
+
             monthlyRankings.forEach(ranking => {
                 const top3 = ranking.players.slice(0, 3);
                 const achievements = ['king', 'shield', 'sword'] as const;
@@ -507,6 +522,22 @@ const RankingMensualContent = () => {
                 });
             });
             
+            // Medals from 6 Loco Parejas for Monthly Ranking
+            monthlyPairEvents.filter(e => e.modality === '6locoParejas').forEach(event => {
+                const sortedResults = [...event.results].sort((a, b) => b.points - a.points);
+                sortedResults.forEach((result, index) => {
+                    if (index > 2) return;
+                    [result.player1.id, result.player2.id].forEach(pid => {
+                        const stats = playerStats[pid];
+                        if (stats) {
+                            if (index === 0) stats.medals.gold += 1;
+                            else if (index === 1) stats.medals.silver += 1;
+                            else if (index === 2) stats.medals.bronze += 1;
+                        }
+                    });
+                });
+            });
+            
             const rankedPlayers: MonthlyRankingPlayer[] = Object.entries(playerStats)
               .filter(([, stats]) => stats.totalGames >= 2)
               .map(([playerId, stats]) => {
@@ -566,12 +597,12 @@ const RankingMensualContent = () => {
                 });
             setPairRanking(rankedPairs);
             
-          } catch (error) {
+        } catch (error) {
             console.error("Error calculating monthly ranking: ", error);
             toast({ title: "Error", description: "No se pudo calcular el ranking mensual.", variant: "destructive" });
-          } finally {
+        } finally {
             setLoading(false);
-          }
+        }
       }
       
       processRankings();

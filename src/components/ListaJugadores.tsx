@@ -1,11 +1,10 @@
 
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, getDoc as getDocFirebase, onSnapshot } from "firebase/firestore";
-import type { Player, DailyEvent, DailyElevadorEvent, Category, MonthlyRanking, PlayerStats, CompletedTournament } from "@/types";
+import type { Player, DailyEvent, DailyElevadorEvent, Category, MonthlyRanking, PlayerStats, CompletedTournament, DailyPairEvent } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -164,6 +163,26 @@ const ListaJugadores = () => {
                     if (index === 2) stats.medals.bronze += 1;
                  }
             });
+        });
+        
+        // Medals from 6 Loco Parejas
+        const dailyPairEventsSnapshot = await getDocs(collection(db, 'dailyPairEvents'));
+        dailyPairEventsSnapshot.forEach(doc => {
+            const eventData = doc.data() as DailyPairEvent;
+            if (eventData.modality === '6locoParejas') {
+                eventData.results.sort((a,b) => b.points - a.points);
+                eventData.results.forEach((result, index) => {
+                    if (index > 2) return;
+                    [result.player1.id, result.player2.id].forEach(pid => {
+                        const stats = playerStats[pid];
+                        if (stats) {
+                            if (index === 0) stats.medals.gold += 1;
+                            if (index === 1) stats.medals.silver += 1;
+                            if (index === 2) stats.medals.bronze += 1;
+                        }
+                    });
+                });
+            }
         });
         
         // Monthly Achievements
