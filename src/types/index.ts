@@ -59,7 +59,7 @@ export interface DailyPairEvent {
     date: string; // YYYY-MM-DD
     name?: string;
     results: DailyPairResult[];
-    modality: 'parejaFija';
+    modality: 'parejaFija' | '6locoParejas';
     category: Category;
 }
 
@@ -138,7 +138,7 @@ export interface GeneralPairRankingPlayer {
 
 
 // Types for new automated match registration
-export type Modality = '6loco' | 'parejaFija' | 'elevador';
+export type Modality = '6loco' | 'parejaFija' | 'elevador' | '6locoParejas';
 
 export interface Pair {
     id: string;

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useEffect, useState, useCallback } from 'react';
@@ -209,6 +210,43 @@ const RegistroPartida = () => {
     return newRounds;
   };
 
+  const generate6locoParejasRounds = (): Round[] => {
+    const numRounds = 6;
+    const rounds: Round[] = [];
+    const n = fixedPairs.length;
+    if (n < 2) return [];
+    
+    // Algoritmo Round-Robin para parejas
+    const ps = [...fixedPairs];
+    if (n % 2 !== 0) {
+        const dummy: Player = { id: 'dummy', name: 'Descansa', category: category, totalGames: 0, totalPoints: 0, efficiency: 0, medals: { gold: 0, silver: 0, bronze: 0 }, achievements: { king: 0, shield: 0, sword: 0 }, trophies: {first:0, second:0, third:0} };
+        ps.push({ id: 'dummy-pair', player1: dummy, player2: dummy });
+    }
+    
+    const numTeams = ps.length;
+    for (let r = 0; r < numRounds; r++) {
+        const matches: Match[] = [];
+        for (let i = 0; i < numTeams / 2; i++) {
+            const t1 = ps[i];
+            const t2 = ps[numTeams - 1 - i];
+            if (t1.id !== 'dummy-pair' && t2.id !== 'dummy-pair') {
+                matches.push({
+                    team1: t1,
+                    team2: t2,
+                    score1: null,
+                    score2: null,
+                    courtNumber: matches.length + 1
+                });
+            }
+        }
+        rounds.push({ matches, isBonus: r === numRounds - 1 });
+        // Rotar
+        const last = ps.pop()!;
+        ps.splice(1, 0, last);
+    }
+    return rounds;
+  };
+
   const generateAmericanoRounds = (): AmericanoRound[] => {
     let pairs = [...fixedPairs];
     if (pairs.length % 2 !== 0) {
@@ -239,7 +277,8 @@ const RegistroPartida = () => {
 
   const generateRounds = async () => {
     let newDocData: Omit<OngoingMatch, 'id'>;
-    const finalName = eventName || (modality === '6loco' ? '6 Loco' : 'Liga');
+    const finalName = eventName || (modality === '6loco' ? '6 Loco Individual' : modality === '6locoParejas' ? '6 Loco Parejas' : 'Liga');
+    
     if (modality === '6loco') {
         if (selectedPlayers.length < 8 || selectedPlayers.length % 4 !== 0) {
             toast({ title: "Error", description: "Se necesitan 8, 12 o 16 jugadores.", variant: "destructive" });
@@ -248,6 +287,13 @@ const RegistroPartida = () => {
         const rounds = generate6locoRounds();
         if (rounds.length === 0) { toast({title: "Error", description: "No se pudo generar la rotación. Intenta de nuevo."}); return; }
         newDocData = { eventName: finalName, date, modality, selectedPlayers, rounds, fixedPairs: [], americanoRounds: [], category };
+    } else if (modality === '6locoParejas') {
+        if (fixedPairs.length < 2) {
+            toast({ title: "Error", description: "Se necesitan al menos 2 parejas.", variant: "destructive" });
+            return;
+        }
+        const rounds = generate6locoParejasRounds();
+        newDocData = { eventName: finalName, date, modality, fixedPairs, rounds, selectedPlayers: [], americanoRounds: [], category };
     } else {
         if (fixedPairs.length < 3) {
             toast({ title: "Error", description: "Se necesitan al menos 3 parejas.", variant: "destructive" });
@@ -256,6 +302,7 @@ const RegistroPartida = () => {
         const rounds = generateAmericanoRounds();
         newDocData = { eventName: finalName, date, modality, fixedPairs, americanoRounds: rounds, selectedPlayers: [], rounds: [], category };
     }
+    
     try {
         const newDocRef = await addDoc(collection(db!, "ongoingMatches"), newDocData);
         setSelectedMatch({ ...newDocData, id: newDocRef.id });
@@ -265,29 +312,56 @@ const RegistroPartida = () => {
   };
 
   const calculatedResults = useMemo(() => {
-    if (!selectedMatch || !selectedMatch.rounds || selectedMatch.modality !== '6loco') return [];
+    if (!selectedMatch || !selectedMatch.rounds || (selectedMatch.modality !== '6loco' && selectedMatch.modality !== '6locoParejas')) return [];
+    
+    const isIndividual = selectedMatch.modality === '6loco';
     const compRounds = selectedMatch.rounds.filter(r => !r.isBonus);
-    const stats: Record<string, DailyResult & { wins: number, draws: number, losses: number }> = {};
-    selectedMatch.selectedPlayers.forEach(p => {
-        stats[p.id] = { playerId: p.id, name: p.name, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
-    });
+    const stats: Record<string, any> = {};
+
+    if (isIndividual) {
+        selectedMatch.selectedPlayers.forEach(p => {
+            stats[p.id] = { playerId: p.id, name: p.name, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
+        });
+    } else {
+        selectedMatch.fixedPairs.forEach(pair => {
+            stats[pair.id] = { pairId: pair.id, name: pair.name, player1: pair.player1, player2: pair.player2, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
+        });
+    }
+
     compRounds.forEach(round => {
         round.matches.forEach(match => {
             const { team1, team2, score1, score2 } = match;
             if (score1 === null || score2 === null) return;
-            [team1.player1.id, team1.player2.id].forEach(id => { if(stats[id]) stats[id].points += score1; });
-            [team2.player1.id, team2.player2.id].forEach(id => { if(stats[id]) stats[id].points += score2; });
-            if (score1 > score2) {
-                [team1.player1.id, team1.player2.id].forEach(id => { if(stats[id]) stats[id].wins++; });
-                [team2.player1.id, team2.player2.id].forEach(id => { if(stats[id]) stats[id].losses++; });
-            } else if (score2 > score1) {
-                [team2.player1.id, team2.player2.id].forEach(id => { if(stats[id]) stats[id].wins++; });
-                [team1.player1.id, team1.player2.id].forEach(id => { if(stats[id]) stats[id].losses++; });
+
+            const t1Won = score1 > score2;
+            const isDraw = score1 === score2;
+
+            if (isIndividual) {
+                [team1.player1.id, team1.player2.id].forEach(id => {
+                    if (stats[id]) {
+                        stats[id].points += score1;
+                        if (t1Won) stats[id].wins++; else if (isDraw) stats[id].draws++; else stats[id].losses++;
+                    }
+                });
+                [team2.player1.id, team2.player2.id].forEach(id => {
+                    if (stats[id]) {
+                        stats[id].points += score2;
+                        if (!t1Won && !isDraw) stats[id].wins++; else if (isDraw) stats[id].draws++; else stats[id].losses++;
+                    }
+                });
             } else {
-                [team1.player1.id, team1.player2.id, team2.player1.id, team2.player2.id].forEach(id => { if(stats[id]) stats[id].draws++; });
+                if (stats[team1.id]) {
+                    stats[team1.id].points += score1;
+                    if (t1Won) stats[team1.id].wins++; else if (isDraw) stats[team1.id].draws++; else stats[team1.id].losses++;
+                }
+                if (stats[team2.id]) {
+                    stats[team2.id].points += score2;
+                    if (!t1Won && !isDraw) stats[team2.id].wins++; else if (isDraw) stats[team2.id].draws++; else stats[team2.id].losses++;
+                }
             }
         });
     });
+
     Object.values(stats).forEach(p => { p.g = p.wins; p.e = p.draws; p.p = p.losses; });
     return Object.values(stats).sort((a,b) => b.points - a.points || b.wins - a.wins || b.draws - a.draws);
   }, [selectedMatch]);
@@ -346,10 +420,12 @@ const RegistroPartida = () => {
     if(!db || !selectedMatch) return;
     setIsSaving(true);
     try {
-        const collName = selectedMatch.modality === '6loco' ? 'dailyEvents' : 'dailyPairEvents';
+        const isPairModality = selectedMatch.modality === 'parejaFija' || selectedMatch.modality === '6locoParejas';
+        const collName = isPairModality ? 'dailyPairEvents' : 'dailyEvents';
         const collRef = collection(db, collName);
         const batch = writeBatch(db);
         const newDoc = doc(collRef);
+        
         if(selectedMatch.modality === '6loco') {
             const results: DailyResult[] = calculatedResults.map(r => ({ playerId: r.playerId, name: r.name, points: r.points, g: r.g, e: r.e, p: r.p }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6loco', category });
@@ -362,6 +438,9 @@ const RegistroPartida = () => {
                     batch.update(pRef, { medals });
                 }
             }
+        } else if (selectedMatch.modality === '6locoParejas') {
+            const results: DailyPairResult[] = calculatedResults.map(r => ({ pairId: r.pairId, player1: r.player1, player2: r.player2, points: r.points, g: r.g, p: r.p, e: r.e }));
+            batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6locoParejas', category });
         } else {
             const results: DailyPairResult[] = americanoRanking.map(r => ({ pairId: r.pairId, player1: r.team.player1, player2: r.team.player2, points: r.points, g: r.matchesWon, p: r.matchesLost, e: 0 }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'parejaFija', category });
@@ -398,7 +477,7 @@ const RegistroPartida = () => {
       </div>
       <Card><CardHeader><CardTitle>{selectedMatch.eventName}</CardTitle></CardHeader>
       <CardContent>
-        {selectedMatch.modality === '6loco' ? (
+        {selectedMatch.modality === '6loco' || selectedMatch.modality === '6locoParejas' ? (
           <Accordion type="single" collapsible className="w-full" value={openAccordion} onValueChange={setOpenAccordion}>
             {selectedMatch.rounds.map((r, ri) => (
               <AccordionItem value={`item-${ri}`} key={ri}><AccordionTrigger className={cn(r.isBonus && "gold-text")}>Ronda {ri+1} {r.isBonus && '(Bonus)'}</AccordionTrigger><AccordionContent>
@@ -446,7 +525,7 @@ const RegistroPartida = () => {
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Clasificación en Vivo</CardTitle></CardHeader><CardContent>
         <Table><TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>{selectedMatch.modality === '6loco' ? 'Jugador' : 'Pareja'}</TableHead><TableHead className="text-center">Pts</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">E</TableHead><TableHead className="text-center">P</TableHead></TableRow></TableHeader><TableBody>
-          {(selectedMatch.modality === '6loco' ? calculatedResults : americanoRanking).map((p, i) => (
+          {(selectedMatch.modality === '6loco' || selectedMatch.modality === '6locoParejas' ? calculatedResults : americanoRanking).map((p, i) => (
             <TableRow key={i} className={i<3 ? 'bg-primary/5 font-bold':''}>
               <TableCell className="flex items-center gap-1">{i+1}{i<3 && <Trophy className={cn("h-3 w-3", i===0?"text-yellow-400":i===1?"text-gray-400":"text-orange-400")}/>}</TableCell>
               <TableCell className="truncate max-w-[120px]">{p.name}</TableCell>
@@ -470,13 +549,13 @@ const RegistroPartida = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><Label>Fecha</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
             <div><Label>Nombre del Evento</Label><Input placeholder="Mizael, Mañana, etc." value={eventName} onChange={e => setEventName(e.target.value)} /></div>
-            <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
+            <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="6locoParejas">6 Loco (Parejas)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
           </div>
           {modality === '6loco' ? (
             <div><Label>Jugadores ({selectedPlayers.length})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start mt-2">Seleccionar Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" />{p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
           ) : (
             <div className="space-y-4">
-              <div><Label>Crear Pareja</Label><div className="flex gap-2 mt-2">
+              <div><Label>Crear Pareja ({fixedPairs.length})</Label><div className="flex gap-2 mt-2">
                 <Select value={player1Id || ''} onValueChange={setPlayer1Id}><SelectTrigger><SelectValue placeholder="Jugador 1" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
                 <Select value={player2Id || ''} onValueChange={setPlayer2Id}><SelectTrigger><SelectValue placeholder="Jugador 2" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
                 <Button onClick={() => { const p1 = allPlayers.find(p => p.id === player1Id); const p2 = allPlayers.find(p => p.id === player2Id); if(p1 && p2) { setFixedPairs([...fixedPairs, { id: [p1.id, p2.id].sort().join('-'), player1: p1, player2: p2 }]); setPlayer1Id(null); setPlayer2Id(null); } }} size="icon"><PlusCircle/></Button>
@@ -484,7 +563,7 @@ const RegistroPartida = () => {
               <div className="border rounded-md p-2 space-y-2">{fixedPairs.map(p => (<div key={p.id} className="flex justify-between bg-muted p-2 rounded">{p.player1.name} & {p.player2.name}<Button variant="ghost" size="icon" onClick={() => setFixedPairs(fixedPairs.filter(fp => fp.id !== p.id))}><Trash2 className="h-4 w-4"/></Button></div>))}</div>
             </div>
           )}
-          <div className="flex justify-end"><Button onClick={generateRounds} disabled={modality==='6loco'?selectedPlayers.length<8:fixedPairs.length<3}><Dices className="mr-2"/> Iniciar Partida</Button></div>
+          <div className="flex justify-end"><Button onClick={generateRounds} disabled={modality==='6loco'?selectedPlayers.length<8:fixedPairs.length<2}><Dices className="mr-2"/> Iniciar Partida</Button></div>
         </div>
       )}</CardContent>
     </Card>

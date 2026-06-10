@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -109,42 +110,57 @@ const ProyectorLiveStandings = () => {
     const results = useMemo(() => {
         if (!ongoingMatch) return [];
         
-        if (ongoingMatch.modality === '6loco') {
+        if (ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas') {
+            const isIndividual = ongoingMatch.modality === '6loco';
             const competitionRounds = ongoingMatch.rounds.filter(r => !r.isBonus);
-            const playerStats: Record<string, any> = {};
-            ongoingMatch.selectedPlayers.forEach(p => {
-                playerStats[p.id] = { playerId: p.id, name: p.name, points: 0, g: 0, e: 0, p: 0 };
-            });
+            const stats: Record<string, any> = {};
+
+            if (isIndividual) {
+                ongoingMatch.selectedPlayers.forEach(p => {
+                    stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, e: 0, p: 0 };
+                });
+            } else {
+                ongoingMatch.fixedPairs.forEach(pair => {
+                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
+                });
+            }
 
             competitionRounds.forEach(round => {
                 round.matches.forEach(match => {
                     const { team1, team2, score1, score2 } = match;
                     if (score1 === null || score2 === null) return;
                     
-                    [team1.player1.id, team1.player2.id].forEach(id => {
-                        if (playerStats[id]) {
-                            playerStats[id].points += score1;
-                            if (score1 > score2) playerStats[id].g++;
-                            else if (score1 < score2) playerStats[id].p++;
-                            else playerStats[id].e++;
+                    if (isIndividual) {
+                        [team1.player1.id, team1.player2.id].forEach(id => {
+                            if (stats[id]) {
+                                stats[id].points += score1;
+                                if (score1 > score2) stats[id].g++; else if (score1 < score2) stats[id].p++; else stats[id].e++;
+                            }
+                        });
+                        [team2.player1.id, team2.player2.id].forEach(id => {
+                            if (stats[id]) {
+                                stats[id].points += score2;
+                                if (score2 > score1) stats[id].g++; else if (score2 < score1) stats[id].p++; else stats[id].e++;
+                            }
+                        });
+                    } else {
+                        if (stats[team1.id]) {
+                            stats[team1.id].points += score1;
+                            if (score1 > score2) stats[team1.id].g++; else if (score1 < score2) stats[team1.id].p++; else stats[team1.id].e++;
                         }
-                    });
-                    [team2.player1.id, team2.player2.id].forEach(id => {
-                        if (playerStats[id]) {
-                            playerStats[id].points += score2;
-                            if (score2 > score1) playerStats[id].g++;
-                            else if (score2 < score1) playerStats[id].p++;
-                            else playerStats[id].e++;
+                        if (stats[team2.id]) {
+                            stats[team2.id].points += score2;
+                            if (score2 > score1) stats[team2.id].g++; else if (score2 < score1) stats[team2.id].p++; else stats[team2.id].e++;
                         }
-                    });
+                    }
                 });
             });
 
-            return Object.values(playerStats).sort((a, b) => b.points - a.points || b.g - a.g || b.e - a.e);
+            return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g || b.e - a.e);
         } else if (ongoingMatch.modality === 'parejaFija') {
             const stats: Record<string, any> = {};
             ongoingMatch.fixedPairs.forEach(pair => {
-                stats[pair.id] = { pairId: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
+                stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
             });
 
             ongoingMatch.americanoRounds.forEach(round => {
@@ -255,11 +271,11 @@ const ProyectorOngoingMatch = () => {
     const modality = ongoingMatch?.modality || '6loco';
 
     useEffect(() => {
-        const activeRounds = modality === '6loco' ? rounds : americanoRounds;
+        const activeRounds = (modality === '6loco' || modality === '6locoParejas') ? rounds : americanoRounds;
         if (!activeRounds || activeRounds.length === 0) return;
         
         const firstUnfinishedRoundIndex = activeRounds.findIndex(round => {
-            if (modality === '6loco') {
+            if (modality === '6loco' || modality === '6locoParejas') {
                 return (round as Round).matches.some(match => match.score1 === null || match.score2 === null);
             } else {
                 return (round as AmericanoRound).matches.some(match => match.set1_t1 === null || match.set1_t2 === null);
@@ -287,7 +303,7 @@ const ProyectorOngoingMatch = () => {
             </CardHeader>
             <CardContent className="py-4">
                 <Accordion type="single" collapsible className="w-full" value={openAccordionItem} onValueChange={setOpenAccordionItem}>
-                    {modality === '6loco' ? (
+                    {(modality === '6loco' || modality === '6locoParejas') ? (
                         rounds.map((round, ri) => (
                             <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
                                 <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>
