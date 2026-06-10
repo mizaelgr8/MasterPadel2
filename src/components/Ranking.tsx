@@ -19,15 +19,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { useCategory } from '@/context/CategoryContext';
 import { useFirebase } from '@/context/FirebaseContext';
+import { cn } from '@/lib/utils';
 
 const RankingGeneralContent = () => {
     const { db } = useFirebase();
     const { category } = useCategory();
+    const { user } = useAuth();
     const [individualPlayers, setIndividualPlayers] = useState<Player[]>([]);
     const [pairPlayers, setPairPlayers] = useState<GeneralPairRankingPlayer[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('individual');
     const { toast } = useToast();
+
+    const isAdmin = user?.username === 'Admin';
 
     const calculateRankings = useCallback(async () => {
         if (!db) return;
@@ -257,6 +261,7 @@ const RankingGeneralContent = () => {
             totalPoints: p.totalPoints,
             efficiency: 0, // Not used in podium pair display
             category: category,
+            trophies: p.trophies,
         }));
       }, [pairPlayers, category]);
 
@@ -270,13 +275,13 @@ const RankingGeneralContent = () => {
                 Ranking General
             </span>
         </CardTitle>
-        <CardDescription>Clasificación histórica de todos los jugadores y parejas de la <span className="font-bold text-primary">{category}</span> categoría.</CardDescription>
+        <CardDescription>Clasificación histórica de todos los jugadores de la <span className="font-bold text-primary">{category}</span> categoría.</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="individual"><User className="mr-2"/> Individual</TabsTrigger>
-                <TabsTrigger value="pairs"><Users className="mr-2"/> Parejas</TabsTrigger>
+                {isAdmin && <TabsTrigger value="pairs"><Users className="mr-2"/> Parejas</TabsTrigger>}
             </TabsList>
             <TabsContent value="individual">
                 {loading ? <Skeleton className="h-48 w-full" /> : individualPlayers.length > 0 && <Podium topPlayers={individualPodiumPlayers} />}
@@ -330,59 +335,61 @@ const RankingGeneralContent = () => {
                   </Table>
                 </div>
             </TabsContent>
-            <TabsContent value="pairs">
-                {loading ? <Skeleton className="h-48 w-full" /> : pairPlayers.length > 0 && <Podium topPlayers={pairPodiumPlayers} />}
-                <div className="overflow-x-auto mt-4">
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[80px]">#</TableHead>
-                                <TableHead>Pareja</TableHead>
-                                <TableHead className="text-center">Eventos</TableHead>
-                                <TableHead className="text-center">Promedio</TableHead>
-                                <TableHead className="text-center">Logros</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                         <TableBody>
-                          {loading ? (
-                              Array.from({ length: 3 }).map((_, i) => (
-                                <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full"/></TableCell></TableRow>
-                              ))
-                            ) : pairPlayers.length > 0 ? (
-                              pairPlayers.map((pair, index) => (
-                                <TableRow key={pair.pairId}>
-                                  <TableCell className="font-bold">{index + 1}</TableCell>
-                                  <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
-                                  <TableCell className="text-center">
-                                    {pair.totalGames}
-                                  </TableCell>
-                                  <TableCell className="text-center text-primary">
-                                    {pair.totalGames > 0 ? (pair.totalPoints / pair.totalGames).toFixed(2) : '0'}
-                                    </TableCell>
-                                  <TableCell className="text-center">
-                                    <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-                                        {(pair.trophies?.first || 0) > 0 && <span className="gold-text"><Trophy className="inline h-4 w-4" /> {pair.trophies.first}</span>}
-                                        {(pair.trophies?.second || 0) > 0 && <span className="silver-text mx-1"><Trophy className="inline h-4 w-4" /> {pair.trophies.second}</span>}
-                                        {(pair.trophies?.third || 0) > 0 && <span className="bronze-text"><Trophy className="inline h-4 w-4" /> {pair.trophies.third}</span>}
-                                        {(pair.achievements?.king || 0) > 0 && <span className="gold-text ml-2">👑 {pair.achievements.king}</span>}
-                                        {(pair.achievements?.shield || 0) > 0 && <span className="silver-text mx-1">🛡️ {pair.achievements.shield}</span>}
-                                        {(pair.achievements?.sword || 0) > 0 && <span className="bronze-text">⚔️ {pair.achievements.sword}</span>}
-                                        {(pair.medals?.gold || 0) > 0 && <span className="gold-text ml-2">🥇 {pair.medals.gold}</span>}
-                                        {(pair.medals?.silver || 0) > 0 && <span className="silver-text mx-1">🥈 {pair.medals.silver}</span>}
-                                        {(pair.medals?.bronze || 0) > 0 && <span className="bronze-text">🥉 {pair.medals.bronze}</span>}
-                                    </div>
-                                </TableCell>
+            {isAdmin && (
+                <TabsContent value="pairs">
+                    {loading ? <Skeleton className="h-48 w-full" /> : pairPlayers.length > 0 && <Podium topPlayers={pairPodiumPlayers} />}
+                    <div className="overflow-x-auto mt-4">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[80px]">#</TableHead>
+                                    <TableHead>Pareja</TableHead>
+                                    <TableHead className="text-center">Eventos</TableHead>
+                                    <TableHead className="text-center">Promedio</TableHead>
+                                    <TableHead className="text-center">Logros</TableHead>
                                 </TableRow>
-                              ))
-                            ) : (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center py-8">No hay datos de parejas para mostrar.</TableCell>
-                              </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </div>
-            </TabsContent>
+                            </TableHeader>
+                             <TableBody>
+                              {loading ? (
+                                  Array.from({ length: 3 }).map((_, i) => (
+                                    <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-12 w-full"/></TableCell></TableRow>
+                                  ))
+                                ) : pairPlayers.length > 0 ? (
+                                  pairPlayers.map((pair, index) => (
+                                    <TableRow key={pair.pairId}>
+                                      <TableCell className="font-bold">{index + 1}</TableCell>
+                                      <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
+                                      <TableCell className="text-center">
+                                        {pair.totalGames}
+                                      </TableCell>
+                                      <TableCell className="text-center text-primary">
+                                        {pair.totalGames > 0 ? (pair.totalPoints / pair.totalGames).toFixed(2) : '0'}
+                                        </TableCell>
+                                      <TableCell className="text-center">
+                                        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                                            {(pair.trophies?.first || 0) > 0 && <span className="gold-text"><Trophy className="inline h-4 w-4" /> {pair.trophies.first}</span>}
+                                            {(pair.trophies?.second || 0) > 0 && <span className="silver-text mx-1"><Trophy className="inline h-4 w-4" /> {pair.trophies.second}</span>}
+                                            {(pair.trophies?.third || 0) > 0 && <span className="bronze-text"><Trophy className="inline h-4 w-4" /> {pair.trophies.third}</span>}
+                                            {(pair.achievements?.king || 0) > 0 && <span className="gold-text ml-2">👑 {pair.achievements.king}</span>}
+                                            {(pair.achievements?.shield || 0) > 0 && <span className="silver-text mx-1">🛡️ {pair.achievements.shield}</span>}
+                                            {(pair.achievements?.sword || 0) > 0 && <span className="bronze-text">⚔️ {pair.achievements.sword}</span>}
+                                            {(pair.medals?.gold || 0) > 0 && <span className="gold-text ml-2">🥇 {pair.medals.gold}</span>}
+                                            {(pair.medals?.silver || 0) > 0 && <span className="silver-text mx-1">🥈 {pair.medals.silver}</span>}
+                                            {(pair.medals?.bronze || 0) > 0 && <span className="bronze-text">🥉 {pair.medals.bronze}</span>}
+                                        </div>
+                                    </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8">No hay datos de parejas para mostrar.</TableCell>
+                                  </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </TabsContent>
+            )}
         </Tabs>
       </CardContent>
     </Card>
@@ -399,6 +406,8 @@ const RankingMensualContent = () => {
   const [activeTab, setActiveTab] = useState<'6loco' | 'parejaFija'>('6loco');
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const isAdmin = user?.username === 'Admin';
 
   const [availableMonths, setAvailableMonths] = useState<{ id: string, name: string }[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
@@ -710,7 +719,8 @@ const RankingMensualContent = () => {
         totalPoints: p.totalPoints,
         efficiency: 0,
         medals: p.medals,
-        achievements: {king: 0, shield: 0, sword: 0}
+        achievements: {king: 0, shield: 0, sword: 0},
+        trophies: {first: 0, second: 0, third: 0}
     }));
   }, [individualRanking, category]);
   
@@ -723,7 +733,8 @@ const RankingMensualContent = () => {
         totalPoints: p.totalPoints,
         efficiency: 0,
         medals: p.medals,
-        achievements: {king: 0, shield: 0, sword: 0}
+        achievements: {king: 0, shield: 0, sword: 0},
+        trophies: {first: 0, second: 0, third: 0}
     }));
   }, [pairRanking, category]);
 
@@ -776,9 +787,9 @@ const RankingMensualContent = () => {
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as '6loco' | 'parejaFija')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="6loco"><User className="mr-2"/> Individual</TabsTrigger>
-                <TabsTrigger value="parejaFija"><Users className="mr-2"/> Parejas</TabsTrigger>
+                {isAdmin && <TabsTrigger value="parejaFija"><Users className="mr-2"/> Parejas</TabsTrigger>}
             </TabsList>
             <TabsContent value="6loco">
                 {loading ? (
@@ -827,53 +838,55 @@ const RankingMensualContent = () => {
                   </TableBody>
                 </Table>
             </TabsContent>
-            <TabsContent value="parejaFija">
-                 {loading ? (
-                    <Skeleton className="h-48 w-full mt-4" />
-                ) : pairRanking.length > 0 ? (
-                    <Podium topPlayers={pairPodiumPlayers} />
-                ) : null}
-                 <p className="font-bold text-lg my-4 capitalize">{selectedMonthName}</p>
-                 {isMonthClosed.pairs && <p className="text-sm text-green-400 flex items-center gap-2 mb-4"><CheckCircle className="h-4 w-4"/>Este ranking mensual (parejas) ya está cerrado.</p>}
-                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Pareja</TableHead>
-                      <TableHead className="text-center">Puntaje</TableHead>
-                      <TableHead className="text-center">Eventos</TableHead>
-                      <TableHead className="text-center">G/E/P</TableHead>
-                      <TableHead className="text-center">Medallas</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8 w-full"/></TableCell></TableRow>
-                      ))
+            {isAdmin && (
+                <TabsContent value="parejaFija">
+                     {loading ? (
+                        <Skeleton className="h-48 w-full mt-4" />
                     ) : pairRanking.length > 0 ? (
-                      pairRanking.map((pair, index) => (
-                        <TableRow key={pair.pairId}>
-                          <TableCell className="font-bold">{index + 1}</TableCell>
-                          <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
-                          <TableCell className="text-center font-semibold text-primary">{pair.rankScore.toFixed(2)}</TableCell>
-                          <TableCell className="text-center">{pair.totalGames}</TableCell>
-                          <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
-                           <TableCell className="text-center text-sm">
-                            {(pair.medals?.gold || 0) > 0 && <span className="gold-text">🥇 {pair.medals.gold}</span>}
-                            {(pair.medals?.silver || 0) > 0 && <span className="mx-1 silver-text">🥈 {pair.medals.silver}</span>}
-                            {(pair.medals?.bronze || 0) > 0 && <span className="bronze-text">🥉 {pair.medals.bronze}</span>}
-                          </TableCell>
+                        <Podium topPlayers={pairPodiumPlayers} />
+                    ) : null}
+                     <p className="font-bold text-lg my-4 capitalize">{selectedMonthName}</p>
+                     {isMonthClosed.pairs && <p className="text-sm text-green-400 flex items-center gap-2 mb-4"><CheckCircle className="h-4 w-4"/>Este ranking mensual (parejas) ya está cerrado.</p>}
+                     <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>#</TableHead>
+                          <TableHead>Pareja</TableHead>
+                          <TableHead className="text-center">Puntaje</TableHead>
+                          <TableHead className="text-center">Eventos</TableHead>
+                          <TableHead className="text-center">G/E/P</TableHead>
+                          <TableHead className="text-center">Medallas</TableHead>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">No hay suficientes datos para generar el ranking de parejas de este mes.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-            </TabsContent>
+                      </TableHeader>
+                      <TableBody>
+                        {loading ? (
+                          Array.from({ length: 3 }).map((_, i) => (
+                            <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8 w-full"/></TableCell></TableRow>
+                          ))
+                        ) : pairRanking.length > 0 ? (
+                          pairRanking.map((pair, index) => (
+                            <TableRow key={pair.pairId}>
+                              <TableCell className="font-bold">{index + 1}</TableCell>
+                              <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
+                              <TableCell className="text-center font-semibold text-primary">{pair.rankScore.toFixed(2)}</TableCell>
+                              <TableCell className="text-center">{pair.totalGames}</TableCell>
+                              <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
+                               <TableCell className="text-center text-sm">
+                                {(pair.medals?.gold || 0) > 0 && <span className="gold-text">🥇 {pair.medals.gold}</span>}
+                                {(pair.medals?.silver || 0) > 0 && <span className="mx-1 silver-text">🥈 {pair.medals.silver}</span>}
+                                {(pair.medals?.bronze || 0) > 0 && <span className="bronze-text">🥉 {pair.medals.bronze}</span>}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8">No hay suficientes datos para generar el ranking de parejas de este mes.</TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                </TabsContent>
+            )}
         </Tabs>
       </CardContent>
     </Card>
@@ -883,18 +896,23 @@ const RankingMensualContent = () => {
 
 const Ranking = () => {
     const { category } = useCategory();
+    const { user } = useAuth();
+    const isAdmin = user?.username === 'Admin';
+
     return (
         <Tabs defaultValue="general" className="w-full" key={category}>
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="general"><BarChart className="mr-2"/> General</TabsTrigger>
-                <TabsTrigger value="mensual"><Calendar className="mr-2"/> Mensual</TabsTrigger>
+                {isAdmin && <TabsTrigger value="mensual"><Calendar className="mr-2"/> Mensual</TabsTrigger>}
             </TabsList>
             <TabsContent value="general" className="mt-6">
                 <RankingGeneralContent />
             </TabsContent>
-            <TabsContent value="mensual" className="mt-6">
-                <RankingMensualContent />
-            </TabsContent>
+            {isAdmin && (
+                <TabsContent value="mensual" className="mt-6">
+                    <RankingMensualContent />
+                </TabsContent>
+            )}
         </Tabs>
     )
 }
