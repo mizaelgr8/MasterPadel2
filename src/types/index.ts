@@ -59,7 +59,7 @@ export interface DailyPairEvent {
     date: string; // YYYY-MM-DD
     name?: string;
     results: DailyPairResult[];
-    modality: 'parejaFija' | '6locoParejas';
+    modality: 'parejaFija' | '6locoParejas' | 'elevadorParejas';
     category: Category;
 }
 
@@ -138,7 +138,7 @@ export interface GeneralPairRankingPlayer {
 
 
 // Types for new automated match registration
-export type Modality = '6loco' | 'parejaFija' | 'elevador' | '6locoParejas';
+export type Modality = '6loco' | 'parejaFija' | 'elevador' | '6locoParejas' | 'elevadorParejas';
 
 export interface Pair {
     id: string;
@@ -299,8 +299,10 @@ export interface ElevadorPlayerStats {
 export interface OngoingElevador {
     id: string;
     eventName?: string;
+    modality: 'elevador' | 'elevadorParejas';
     numberOfPlayers: string;
     selectedPlayers: Player[];
+    fixedPairs: Pair[];
     category: Category;
     rounds: ElevadorRound[];
     stage: 'setup' | 'playing';

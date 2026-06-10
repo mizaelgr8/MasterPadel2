@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
-import type { Player, Category, OngoingMatch, Round, AmericanoRound, AmericanoMatch, DailyEvent, DailyElevadorEvent, MonthlyRanking } from '@/types';
+import type { Player, Category, OngoingMatch, Round, AmericanoRound, AmericanoMatch, DailyEvent, DailyElevadorEvent, MonthlyRanking, OngoingElevador } from '@/types';
 import { useFirebase } from '@/context/FirebaseContext';
 import { useCategory } from '@/context/CategoryContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -88,118 +88,169 @@ const ProyectorLiveStandings = () => {
     const { db } = useFirebase();
     const { category } = useCategory();
     const [ongoingMatch, setOngoingMatch] = useState<OngoingMatch | null>(null);
+    const [ongoingElevador, setOngoingElevador] = useState<OngoingElevador | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!db) return;
         setLoading(true);
-        const q = query(collection(db, "ongoingMatches"), where("category", "==", category));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const qMatch = query(collection(db, "ongoingMatches"), where("category", "==", category));
+        const qElevador = query(collection(db, "ongoingElevador"), where("category", "==", category));
+
+        const unsubMatch = onSnapshot(qMatch, (snapshot) => {
             if (!snapshot.empty) {
                 const matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OngoingMatch));
-                const sortedMatches = matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                setOngoingMatch(sortedMatches[0] || null);
-            } else {
-                setOngoingMatch(null);
-            }
+                setOngoingMatch(matches[0]);
+            } else setOngoingMatch(null);
+        });
+
+        const unsubElevador = onSnapshot(qElevador, (snapshot) => {
+            if (!snapshot.empty) {
+                const matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OngoingElevador));
+                setOngoingElevador(matches[0]);
+            } else setOngoingElevador(null);
             setLoading(false);
         });
-        return () => unsubscribe();
+
+        return () => { unsubMatch(); unsubElevador(); };
     }, [db, category]);
 
     const results = useMemo(() => {
-        if (!ongoingMatch) return [];
-        
-        if (ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas') {
-            const isIndividual = ongoingMatch.modality === '6loco';
-            const competitionRounds = ongoingMatch.rounds.filter(r => !r.isBonus);
+        if (ongoingMatch) {
+            if (ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas') {
+                const isIndividual = ongoingMatch.modality === '6loco';
+                const competitionRounds = ongoingMatch.rounds.filter(r => !r.isBonus);
+                const stats: Record<string, any> = {};
+
+                if (isIndividual) {
+                    ongoingMatch.selectedPlayers.forEach(p => {
+                        stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, e: 0, p: 0 };
+                    });
+                } else {
+                    ongoingMatch.fixedPairs.forEach(pair => {
+                        stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
+                    });
+                }
+
+                competitionRounds.forEach(round => {
+                    round.matches.forEach(match => {
+                        const { team1, team2, score1, score2 } = match;
+                        if (score1 === null || score2 === null) return;
+                        
+                        if (isIndividual) {
+                            [team1.player1.id, team1.player2.id].forEach(id => {
+                                if (stats[id]) {
+                                    stats[id].points += score1;
+                                    if (score1 > score2) stats[id].g++; else if (score1 < score2) stats[id].p++; else stats[id].e++;
+                                }
+                            });
+                            [team2.player1.id, team2.player2.id].forEach(id => {
+                                if (stats[id]) {
+                                    stats[id].points += score2;
+                                    if (score2 > score1) stats[id].g++; else if (score2 < score1) stats[id].p++; else stats[id].e++;
+                                }
+                            });
+                        } else {
+                            if (stats[team1.id]) {
+                                stats[team1.id].points += score1;
+                                if (score1 > score2) stats[team1.id].g++; else if (score1 < score2) stats[team1.id].p++; else stats[team1.id].e++;
+                            }
+                            if (stats[team2.id]) {
+                                stats[team2.id].points += score2;
+                                if (score2 > score1) stats[team2.id].g++; else if (score2 < score1) stats[team2.id].p++; else stats[team2.id].e++;
+                            }
+                        }
+                    });
+                });
+
+                return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g || b.e - a.e);
+            } else if (ongoingMatch.modality === 'parejaFija') {
+                const stats: Record<string, any> = {};
+                ongoingMatch.fixedPairs.forEach(pair => {
+                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
+                });
+
+                ongoingMatch.americanoRounds.forEach(round => {
+                    round.matches.forEach(match => {
+                        const { team1, team2, set1_t1, set1_t2, set2_t1, set2_t2, set3_t1, set3_t2 } = match;
+                        if (set1_t1 === null || set1_t2 === null || set2_t1 === null || set2_t2 === null) return;
+                        const t1 = stats[team1.id]; const t2 = stats[team2.id];
+                        if (!t1 || !t2) return;
+                        
+                        let s1 = 0; let s2 = 0;
+                        if (set1_t1 > set1_t2) s1++; else s2++;
+                        if (set2_t1 > set2_t2) s1++; else s2++;
+                        if (s1 !== 2 && s2 !== 2 && set3_t1 !== null) { if (set3_t1 > set3_t2!) s1++; else s2++; }
+                        
+                        if (s1 > s2) { 
+                            t1.g++; t2.p++; 
+                            t1.points += (s1 === 2 && s2 === 0) ? 3 : 2; 
+                            t2.points += (s1 === 2 && s2 === 1) ? 1 : 0; 
+                        } else { 
+                            t2.g++; t1.p++; 
+                            t2.points += (s2 === 2 && s1 === 0) ? 3 : 2; 
+                            t1.points += (s2 === 2 && s1 === 1) ? 1 : 0; 
+                        }
+                    });
+                });
+                return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
+            }
+        } else if (ongoingElevador) {
+            const isIndividual = ongoingElevador.modality === 'elevador';
+            const competitionRounds = ongoingElevador.rounds.filter(r => !r.isBonus);
             const stats: Record<string, any> = {};
 
             if (isIndividual) {
-                ongoingMatch.selectedPlayers.forEach(p => {
-                    stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, e: 0, p: 0 };
+                ongoingElevador.selectedPlayers.forEach(p => {
+                    stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, e: 0, p: 0, finalCourt: ongoingElevador.playerStats[p.id]?.finalCourt || 0 };
                 });
             } else {
-                ongoingMatch.fixedPairs.forEach(pair => {
-                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
+                ongoingElevador.fixedPairs.forEach(pair => {
+                    const ps = ongoingElevador.playerStats[pair.player1.id];
+                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0, finalCourt: ps?.finalCourt || 0 };
                 });
             }
 
             competitionRounds.forEach(round => {
-                round.matches.forEach(match => {
-                    const { team1, team2, score1, score2 } = match;
-                    if (score1 === null || score2 === null) return;
-                    
+                round.courts.forEach(court => {
+                    const { match } = court;
+                    if (!match || match.score1 === null || match.score2 === null) return;
+                    const t1Won = match.score1 > match.score2;
+
                     if (isIndividual) {
-                        [team1.player1.id, team1.player2.id].forEach(id => {
-                            if (stats[id]) {
-                                stats[id].points += score1;
-                                if (score1 > score2) stats[id].g++; else if (score1 < score2) stats[id].p++; else stats[id].e++;
-                            }
+                        [match.team1.player1.id, match.team1.player2.id].forEach(id => {
+                            if (stats[id]) { stats[id].points += match.score1!; if (t1Won) stats[id].g++; else stats[id].p++; }
                         });
-                        [team2.player1.id, team2.player2.id].forEach(id => {
-                            if (stats[id]) {
-                                stats[id].points += score2;
-                                if (score2 > score1) stats[id].g++; else if (score2 < score1) stats[id].p++; else stats[id].e++;
-                            }
+                        [match.team2.player1.id, match.team2.player2.id].forEach(id => {
+                            if (stats[id]) { stats[id].points += match.score2!; if (!t1Won) stats[id].g++; else stats[id].p++; }
                         });
                     } else {
-                        if (stats[team1.id]) {
-                            stats[team1.id].points += score1;
-                            if (score1 > score2) stats[team1.id].g++; else if (score1 < score2) stats[team1.id].p++; else stats[team1.id].e++;
-                        }
-                        if (stats[team2.id]) {
-                            stats[team2.id].points += score2;
-                            if (score2 > score1) stats[team2.id].g++; else if (score2 < score1) stats[team2.id].p++; else stats[team2.id].e++;
-                        }
+                        const pair1Id = getPairId(match.team1.player1.id, match.team1.player2.id);
+                        const pair2Id = getPairId(match.team2.player1.id, match.team2.player2.id);
+                        if (stats[pair1Id]) { stats[pair1Id].points += match.score1!; if (t1Won) stats[pair1Id].g++; else stats[pair1Id].p++; }
+                        if (stats[pair2Id]) { stats[pair2Id].points += match.score2!; if (!t1Won) stats[pair2Id].g++; else stats[pair2Id].p++; }
                     }
                 });
             });
 
-            return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g || b.e - a.e);
-        } else if (ongoingMatch.modality === 'parejaFija') {
-            const stats: Record<string, any> = {};
-            ongoingMatch.fixedPairs.forEach(pair => {
-                stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0 };
-            });
-
-            ongoingMatch.americanoRounds.forEach(round => {
-                round.matches.forEach(match => {
-                    const { team1, team2, set1_t1, set1_t2, set2_t1, set2_t2, set3_t1, set3_t2 } = match;
-                    if (set1_t1 === null || set1_t2 === null || set2_t1 === null || set2_t2 === null) return;
-                    const t1 = stats[team1.id]; const t2 = stats[team2.id];
-                    if (!t1 || !t2) return;
-                    
-                    let s1 = 0; let s2 = 0;
-                    if (set1_t1 > set1_t2) s1++; else s2++;
-                    if (set2_t1 > set2_t2) s1++; else s2++;
-                    if (s1 !== 2 && s2 !== 2 && set3_t1 !== null) { if (set3_t1 > set3_t2!) s1++; else s2++; }
-                    
-                    if (s1 > s2) { 
-                        t1.g++; t2.p++; 
-                        t1.points += (s1 === 2 && s2 === 0) ? 3 : 2; 
-                        t2.points += (s1 === 2 && s2 === 1) ? 1 : 0; 
-                    } else { 
-                        t2.g++; t1.p++; 
-                        t2.points += (s2 === 2 && s1 === 0) ? 3 : 2; 
-                        t1.points += (s2 === 2 && s1 === 1) ? 1 : 0; 
-                    }
-                });
-            });
-            return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
+            return Object.values(stats).sort((a, b) => b.g - a.g || b.points - a.points || a.finalCourt - b.finalCourt);
         }
         return [];
-    }, [ongoingMatch]);
+    }, [ongoingMatch, ongoingElevador]);
+
+    const getPairId = (p1Id: string, p2Id: string) => [p1Id, p2Id].sort().join('-');
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
     
-    if (!ongoingMatch) return (
+    if (!ongoingMatch && !ongoingElevador) return (
         <Card className="h-full bg-slate-900/50 border-slate-700 flex flex-col items-center justify-center p-8 text-center shadow-xl">
             <Star className="h-20 w-20 text-slate-700 mb-4 animate-pulse" />
             <CardTitle className="text-2xl text-white">Sin Partida Activa</CardTitle>
             <CardDescription className="text-lg">Inicia un evento para ver los resultados aquí.</CardDescription>
         </Card>
     );
+
+    const title = ongoingMatch ? (ongoingMatch.eventName) : (ongoingElevador?.eventName || 'Elevador');
 
     return (
         <Card className="h-full bg-slate-900/50 border-slate-700 shadow-xl">
@@ -208,7 +259,7 @@ const ProyectorLiveStandings = () => {
                     <Trophy className="text-yellow-400 h-8 w-8"/> Clasificación en Vivo
                 </CardTitle>
                 <CardDescription className="text-slate-300 text-lg">
-                    {ongoingMatch.eventName} - {ongoingMatch.modality === '6loco' ? 'Individual' : 'Parejas'}
+                    {title}
                 </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -230,8 +281,8 @@ const ProyectorLiveStandings = () => {
                                 <TableCell className="font-bold text-xl truncate max-w-[200px]">{row.name.toUpperCase()}</TableCell>
                                 <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                                 <TableCell className="text-center text-xl font-semibold">{row.g}</TableCell>
-                                <TableCell className="text-center text-xl opacity-70">{row.e}</TableCell>
-                                <TableCell className="text-center text-xl opacity-70">{row.p}</TableCell>
+                                <TableCell className="text-center text-xl opacity-70">{row.e || 0}</TableCell>
+                                <TableCell className="text-center text-xl opacity-70">{row.p || 0}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
@@ -246,48 +297,59 @@ const ProyectorOngoingMatch = () => {
     const { db } = useFirebase();
     const { category } = useCategory();
     const [ongoingMatch, setOngoingMatch] = useState<OngoingMatch | null>(null);
+    const [ongoingElevador, setOngoingElevador] = useState<OngoingElevador | null>(null);
     const [loading, setLoading] = useState(true);
     const [openAccordionItem, setOpenAccordionItem] = useState<string>('item-0');
 
     useEffect(() => {
         if (!db) return;
         setLoading(true);
-        const q = query(collection(db, "ongoingMatches"), where("category", "==", category));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
+        const qMatch = query(collection(db, "ongoingMatches"), where("category", "==", category));
+        const qElevador = query(collection(db, "ongoingElevador"), where("category", "==", category));
+
+        const unsubMatch = onSnapshot(qMatch, (snapshot) => {
             if (!snapshot.empty) {
                 const matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OngoingMatch));
-                const sortedMatches = matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                setOngoingMatch(sortedMatches[0] || null);
-            } else {
-                setOngoingMatch(null);
-            }
+                setOngoingMatch(matches[0]);
+            } else setOngoingMatch(null);
+        });
+
+        const unsubElevador = onSnapshot(qElevador, (snapshot) => {
+            if (!snapshot.empty) {
+                const matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OngoingElevador));
+                setOngoingElevador(matches[0]);
+            } else setOngoingElevador(null);
             setLoading(false);
         });
-        return () => unsubscribe();
+
+        return () => { unsubMatch(); unsubElevador(); };
     }, [db, category]);
 
-    const rounds = ongoingMatch?.rounds || [];
-    const americanoRounds = ongoingMatch?.americanoRounds || [];
-    const modality = ongoingMatch?.modality || '6loco';
+    const activeGame = ongoingMatch || ongoingElevador;
 
     useEffect(() => {
-        const activeRounds = (modality === '6loco' || modality === '6locoParejas') ? rounds : americanoRounds;
-        if (!activeRounds || activeRounds.length === 0) return;
+        if (!activeGame) return;
+        const rounds = ongoingMatch ? (ongoingMatch.modality === 'parejaFija' ? ongoingMatch.americanoRounds : ongoingMatch.rounds) : ongoingElevador?.rounds;
+        if (!rounds || rounds.length === 0) return;
         
-        const firstUnfinishedRoundIndex = activeRounds.findIndex(round => {
-            if (modality === '6loco' || modality === '6locoParejas') {
-                return (round as Round).matches.some(match => match.score1 === null || match.score2 === null);
+        const firstUnfinishedRoundIndex = rounds.findIndex(round => {
+            if (ongoingMatch) {
+                if (ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas') {
+                    return (round as Round).matches.some(match => match.score1 === null || match.score2 === null);
+                } else {
+                    return (round as AmericanoRound).matches.some(match => match.set1_t1 === null || match.set1_t2 === null);
+                }
             } else {
-                return (round as AmericanoRound).matches.some(match => match.set1_t1 === null || match.set1_t2 === null);
+                return (round as any).courts.some((c: any) => c.match?.score1 === null);
             }
         });
 
-        setOpenAccordionItem(`item-${firstUnfinishedRoundIndex !== -1 ? firstUnfinishedRoundIndex : activeRounds.length - 1}`);
-    }, [rounds, americanoRounds, modality]);
+        setOpenAccordionItem(`item-${firstUnfinishedRoundIndex !== -1 ? firstUnfinishedRoundIndex : rounds.length - 1}`);
+    }, [ongoingMatch, ongoingElevador]);
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
-    if (!ongoingMatch) return (
+    if (!activeGame) return (
         <Card className="h-full bg-slate-900/50 border-slate-700 flex flex-col items-center justify-center p-8 text-center shadow-xl">
             <Sword className="h-20 w-20 text-slate-700 mb-4" />
             <CardTitle className="text-2xl text-white">Esperando Partida...</CardTitle>
@@ -303,62 +365,94 @@ const ProyectorOngoingMatch = () => {
             </CardHeader>
             <CardContent className="py-4">
                 <Accordion type="single" collapsible className="w-full" value={openAccordionItem} onValueChange={setOpenAccordionItem}>
-                    {(modality === '6loco' || modality === '6locoParejas') ? (
-                        rounds.map((round, ri) => (
+                    {ongoingMatch ? (
+                        ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas' ? (
+                            ongoingMatch.rounds.map((round, ri) => (
+                                <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
+                                    <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>
+                                        Ronda {ri + 1} {round.isBonus && '(Bonus)'}
+                                    </AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                            {round.matches.map((match, mi) => (
+                                                <div key={mi} className='flex flex-col gap-1 p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
+                                                    <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
+                                                    <div className='flex items-center gap-2'>
+                                                        <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>{match.team1.player1.name} {ongoingMatch.modality === '6loco' ? `/ ${match.team1.player2.name}` : ''}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score1 ?? '-'}</div>
+                                                            <span className="text-primary font-black">VS</span>
+                                                            <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score2 ?? '-'}</div>
+                                                        </div>
+                                                        <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>{match.team2.player1.name} {ongoingMatch.modality === '6loco' ? `/ ${match.team2.player2.name}` : ''}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))
+                        ) : (
+                            ongoingMatch.americanoRounds.map((round, ri) => (
+                                <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
+                                    <AccordionTrigger className="text-2xl text-white font-bold">Ronda {round.roundNumber}</AccordionTrigger>
+                                    <AccordionContent>
+                                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                            {round.matches.map((match, mi) => (
+                                                <div key={mi} className="p-4 border rounded-lg bg-slate-800 border-slate-600 shadow-inner">
+                                                    <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-2">Cancha {match.courtNumber || mi + 1}</div>
+                                                    <div className="flex justify-between text-xl font-black mb-4 uppercase">
+                                                        <span className="flex-1 text-right truncate text-slate-300">{match.team1.player1.name} / {match.team1.player2.name}</span>
+                                                        <span className="px-4 text-primary">VS</span>
+                                                        <span className="flex-1 truncate text-slate-300">{match.team2.player1.name} / {match.team2.player2.name}</span>
+                                                    </div>
+                                                    <div className="flex justify-center gap-8">
+                                                        {[1, 2, 3].map(s => {
+                                                            const s1 = (match as any)[`set${s}_t1`];
+                                                            const s2 = (match as any)[`set${s}_t2`];
+                                                            if (s === 3 && s1 === null) return null;
+                                                            return (
+                                                                <div key={s} className="text-center">
+                                                                    <p className="text-[10px] uppercase font-black opacity-50 mb-1 tracking-widest">SET {s}</p>
+                                                                    <div className="flex gap-2 text-3xl font-black">
+                                                                        <span className={cn(s1 > s2 ? "text-yellow-400" : "text-white")}>{s1 ?? '-'}</span>
+                                                                        <span className="opacity-20">|</span>
+                                                                        <span className={cn(s2 > s1 ? "text-yellow-400" : "text-white")}>{s2 ?? '-'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </AccordionContent>
+                                </AccordionItem>
+                            ))
+                        )
+                    ) : (
+                        ongoingElevador?.rounds.map((round, ri) => (
                             <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
                                 <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>
-                                    Ronda {ri + 1} {round.isBonus && '(Bonus)'}
+                                    Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                        {round.matches.map((match, mi) => (
-                                            <div key={mi} className='flex flex-col gap-1 p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
-                                                <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
+                                        {round.courts.map((court, ci) => (
+                                            <div key={ci} className='flex flex-col gap-1 p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
+                                                <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {court.courtNumber}</div>
                                                 <div className='flex items-center gap-2'>
-                                                    <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>{match.team1.player1.name} / {match.team1.player2.name}</div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score1 ?? '-'}</div>
-                                                        <span className="text-primary font-black">VS</span>
-                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score2 ?? '-'}</div>
+                                                    <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>
+                                                        {court.match?.team1.player1.name} {ongoingElevador.modality === 'elevadorParejas' ? `/ ${court.match?.team1.player2.name}` : ''}
                                                     </div>
-                                                    <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>{match.team2.player1.name} / {match.team2.player2.name}</div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))
-                    ) : (
-                        americanoRounds.map((round, ri) => (
-                            <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
-                                <AccordionTrigger className="text-2xl text-white font-bold">Ronda {round.roundNumber}</AccordionTrigger>
-                                <AccordionContent>
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                        {round.matches.map((match, mi) => (
-                                            <div key={mi} className="p-4 border rounded-lg bg-slate-800 border-slate-600 shadow-inner">
-                                                <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-2">Cancha {match.courtNumber || mi + 1}</div>
-                                                <div className="flex justify-between text-xl font-black mb-4 uppercase">
-                                                    <span className="flex-1 text-right truncate text-slate-300">{match.team1.player1.name} / {match.team1.player2.name}</span>
-                                                    <span className="px-4 text-primary">VS</span>
-                                                    <span className="flex-1 truncate text-slate-300">{match.team2.player1.name} / {match.team2.player2.name}</span>
-                                                </div>
-                                                <div className="flex justify-center gap-8">
-                                                    {[1, 2, 3].map(s => {
-                                                        const s1 = (match as any)[`set${s}_t1`];
-                                                        const s2 = (match as any)[`set${s}_t2`];
-                                                        if (s === 3 && s1 === null) return null;
-                                                        return (
-                                                            <div key={s} className="text-center">
-                                                                <p className="text-[10px] uppercase font-black opacity-50 mb-1 tracking-widest">SET {s}</p>
-                                                                <div className="flex gap-2 text-3xl font-black">
-                                                                    <span className={cn(s1 > s2 ? "text-yellow-400" : "text-white")}>{s1 ?? '-'}</span>
-                                                                    <span className="opacity-20">|</span>
-                                                                    <span className={cn(s2 > s1 ? "text-yellow-400" : "text-white")}>{s2 ?? '-'}</span>
-                                                                </div>
-                                                            </div>
-                                                        )
-                                                    })}
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score1 ?? '-'}</div>
+                                                        <span className="text-primary font-black">VS</span>
+                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score2 ?? '-'}</div>
+                                                    </div>
+                                                    <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>
+                                                        {court.match?.team2.player1.name} {ongoingElevador.modality === 'elevadorParejas' ? `/ ${court.match?.team2.player2.name}` : ''}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
