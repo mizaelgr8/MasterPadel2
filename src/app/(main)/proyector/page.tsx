@@ -494,7 +494,7 @@ export default function ProyectorPage() {
             const allElevador = elevadorSnap.docs.map(d => d.data() as DailyElevadorEvent);
             const allMonthly = monthlySnap.docs.map(d => d.data() as MonthlyRanking);
 
-            const cats: Category[] = ['5ta', '4ta', '3ra'];
+            const cats: Category[] = ['5ta', '4ta', '3ra', '2da', '1ra'];
             const finalRankings = cats.map(cat => {
                 const categoryPlayers = allPlayers.filter(p => cat === '4ta' ? (p.category === '4ta' || !p.category) : p.category === cat);
                 
@@ -599,6 +599,8 @@ export default function ProyectorPage() {
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700 text-white">
                             <SelectItem value="ranking" className="focus:bg-primary/20 text-lg">Ranking General (Multi-Categoría)</SelectItem>
+                            <SelectItem value="1ra" className="focus:bg-primary/20 text-lg">1ra Cat. (Marcadores en Vivo)</SelectItem>
+                            <SelectItem value="2da" className="focus:bg-primary/20 text-lg">2da Cat. (Marcadores en Vivo)</SelectItem>
                             <SelectItem value="3ra" className="focus:bg-primary/20 text-lg">3ra Cat. (Marcadores en Vivo)</SelectItem>
                             <SelectItem value="4ta" className="focus:bg-primary/20 text-lg">4ta Cat. (Marcadores en Vivo)</SelectItem>
                             <SelectItem value="5ta" className="focus:bg-primary/20 text-lg">5ta Cat. (Marcadores en Vivo)</SelectItem>
@@ -616,7 +618,7 @@ export default function ProyectorPage() {
                             <p className="text-xl font-bold animate-pulse">CALCULANDO RANKINGS HISTÓRICOS...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full items-stretch">
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 h-full items-stretch">
                             {globalRankings.map(ranking => (
                                 <ProyectorGeneralRankingColumn 
                                     key={ranking.category} 

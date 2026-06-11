@@ -28,7 +28,7 @@ const ListaJugadores = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PlayerFormData>({ defaultValues: { category: '5ta' }});
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PlayerFormData>({ defaultValues: { category: '4ta' }});
   const { toast } = useToast();
   const { user } = useAuth();
   const { category } = useCategory();
@@ -300,6 +300,8 @@ const ListaJugadores = () => {
                         <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="1ra">1ra</SelectItem>
+                        <SelectItem value="2da">2da</SelectItem>
                         <SelectItem value="3ra">3ra</SelectItem>
                         <SelectItem value="4ta">4ta</SelectItem>
                         <SelectItem value="5ta">5ta</SelectItem>

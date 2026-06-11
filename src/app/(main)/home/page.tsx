@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -178,6 +179,8 @@ export default function HomePage() {
                         <SelectValue placeholder="Categoría" />
                     </SelectTrigger>
                     <SelectContent>
+                        <SelectItem value="1ra">1ra Cat.</SelectItem>
+                        <SelectItem value="2da">2da Cat.</SelectItem>
                         <SelectItem value="3ra">3ra Cat.</SelectItem>
                         <SelectItem value="4ta">4ta Cat.</SelectItem>
                         <SelectItem value="5ta">5ta Cat.</SelectItem>

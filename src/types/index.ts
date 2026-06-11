@@ -1,5 +1,5 @@
 
-export type Category = '3ra' | '4ta' | '5ta';
+export type Category = '1ra' | '2da' | '3ra' | '4ta' | '5ta';
 
 export interface Player {
   id: string;
