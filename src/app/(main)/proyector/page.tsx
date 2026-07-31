@@ -443,7 +443,7 @@ const ProyectorOngoingMatch = () => {
                                                 <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {court.courtNumber}</div>
                                                 <div className='flex items-center gap-2'>
                                                     <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>
-                                                        {court.match?.team1.player1.name} {ongoingElevador.modality === 'elevadorParejas' ? `/ ${court.match?.team1.player2.name}` : ''}
+                                                        {court.match?.team1.player1.name} / {court.match?.team1.player2.name}
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score1 ?? '-'}</div>
@@ -451,7 +451,7 @@ const ProyectorOngoingMatch = () => {
                                                         <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score2 ?? '-'}</div>
                                                     </div>
                                                     <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>
-                                                        {court.match?.team2.player1.name} {ongoingElevador.modality === 'elevadorParejas' ? `/ ${court.match?.team2.player2.name}` : ''}
+                                                        {court.match?.team2.player1.name} / {court.match?.team2.player2.name}
                                                     </div>
                                                 </div>
                                             </div>

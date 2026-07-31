@@ -757,13 +757,17 @@ const RegistroElevador = () => {
                                         <CardContent>
                                             {court.match ? (
                                                  <div className='flex items-center gap-2 text-sm p-2 bg-muted rounded-md'>
-                                                    <div className='flex-1 text-right truncate'>{court.match.team1.player1.name} {selectedMatch.modality === 'elevadorParejas' && `/ ${court.match.team1.player2.name}`}</div>
+                                                    <div className='flex-1 text-right truncate'>
+                                                        {court.match.team1.player1.name} / {court.match.team1.player2.name}
+                                                    </div>
                                                     <div className="flex items-center gap-1">
                                                         <Input type="text" pattern="[0-7]*" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
                                                         <span className='font-bold text-primary'>-</span>
                                                         <Input type="text" pattern="[0-7]*" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
                                                     </div>
-                                                    <div className='flex-1 truncate'>{court.match.team2.player1.name} {selectedMatch.modality === 'elevadorParejas' && `/ ${court.match.team2.player2.name}`}</div>
+                                                    <div className='flex-1 truncate'>
+                                                        {court.match.team2.player1.name} / {court.match.team2.player2.name}
+                                                    </div>
                                                 </div>
                                             ) : <p>Error al generar partido</p>}
                                         </CardContent>
@@ -923,7 +927,7 @@ const RegistroElevador = () => {
                             </Button>
                         </div>
                     </>
-                )}
+                 )}
             </CardContent>
         </Card>
     );
