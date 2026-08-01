@@ -448,25 +448,25 @@ const ProyectorOngoingMatch = () => {
                                                 <div className='flex items-center gap-4'>
                                                     {/* Team 1 stacked names */}
                                                     <div className='flex-1 flex flex-col items-end gap-1'>
-                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team1.player1.name.toUpperCase()}</span>
-                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team1.player2.name.toUpperCase()}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team1.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team1.player2.name}</span>
                                                     </div>
                                                     
                                                     {/* Score centered */}
                                                     <div className="flex items-center gap-2 shrink-0">
-                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,215,0,0.1)]">
                                                             {court.match?.score1 ?? '-'}
                                                         </div>
                                                         <span className="text-primary font-black text-2xl">VS</span>
-                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,215,0,0.1)]">
                                                             {court.match?.score2 ?? '-'}
                                                         </div>
                                                     </div>
                                                     
                                                     {/* Team 2 stacked names */}
                                                     <div className='flex-1 flex flex-col items-start gap-1'>
-                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team2.player1.name.toUpperCase()}</span>
-                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team2.player2.name.toUpperCase()}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team2.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -669,3 +669,4 @@ export default function ProyectorPage() {
         </div>
     );
 }
+

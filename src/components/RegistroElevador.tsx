@@ -758,8 +758,8 @@ const RegistroElevador = () => {
                                                  <div className='flex items-center gap-4 p-4 bg-muted/30 rounded-xl border border-border/50'>
                                                     {/* Team 1 */}
                                                     <div className='flex-1 flex flex-col items-end gap-1'>
-                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team1.player1.name}</span>
-                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team1.player2.name}</span>
+                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team1.player1.name}</span>
+                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team1.player2.name}</span>
                                                     </div>
                                                     
                                                     {/* Score Area */}
@@ -785,8 +785,8 @@ const RegistroElevador = () => {
                                                     
                                                     {/* Team 2 */}
                                                     <div className='flex-1 flex flex-col items-start gap-1'>
-                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team2.player1.name}</span>
-                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team2.player2.name}</span>
+                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team2.player1.name}</span>
+                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             ) : <p>Error al generar partido</p>}
@@ -954,3 +954,4 @@ const RegistroElevador = () => {
 };
 
 export default RegistroElevador;
+
