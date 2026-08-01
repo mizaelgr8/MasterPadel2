@@ -29,18 +29,17 @@ const sortPlayersByRank = (players: Player[]): Player[] => {
         const val = (v: number | undefined) => v || 0;
         const aAchievements = a.achievements || { king: 0, shield: 0, sword: 0 };
         const bAchievements = b.achievements || { king: 0, shield: 0, sword: 0 };
-        if (val(bAchievements.king) !== val(aAchievements.king)) return val(bAchievements.king) - val(aAchievements.king);
-        if (val(bAchievements.shield) !== val(aAchievements.shield)) return val(bAchievements.shield) - val(aAchievements.shield);
-        if (val(bAchievements.sword) !== val(aAchievements.sword)) return val(bAchievements.sword) - val(aAchievements.sword);
-        const aMedals = a.medals || { gold: 0, silver: 0, bronze: 0 };
-        const bMedals = b.medals || { gold: 0, silver: 0, bronze: 0 };
-        if (val(bMedals.gold) !== val(aMedals.gold)) return val(bMedals.gold) - val(aMedals.gold);
-        if (val(bMedals.silver) !== val(aMedals.silver)) return val(bMedals.silver) - val(aMedals.silver);
-        if (val(bMedals.bronze) !== val(aMedals.bronze)) return val(bMedals.bronze) - val(aMedals.bronze);
+        if (val(bAchievements.king) !== val(aAchievements.king)) return bAchievements.king - aAchievements.king;
+        if (val(bAchievements.shield) !== val(aAchievements.shield)) return bAchievements.shield - aAchievements.shield;
+        if (val(bAchievements.sword) !== val(aAchievements.sword)) return bAchievements.sword - aAchievements.sword;
+        const aMed = a.medals || { gold: 0, silver: 0, bronze: 0 };
+        const bMed = b.medals || { gold: 0, silver: 0, bronze: 0 };
+        if (val(bMed.gold) !== val(aMed.gold)) return bMed.gold - aMed.gold;
+        if (val(bMed.silver) !== val(aMed.silver)) return bMed.silver - aMed.silver;
+        if (val(bMed.bronze) !== val(aMed.bronze)) return bMed.bronze - aMed.bronze;
         const avgA = val(a.totalGames) > 0 ? (val(a.totalPoints) / val(a.totalGames)) : 0;
         const avgB = val(b.totalGames) > 0 ? (val(b.totalPoints) / val(b.totalGames)) : 0;
-        if (avgB !== avgA) return avgB - avgA;
-        return val(b.totalGames) - val(a.totalGames);
+        return avgB - avgA;
     });
 };
 
@@ -49,7 +48,6 @@ const RegistroPartida = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { category } = useCategory();
-  
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [openAccordion, setOpenAccordion] = useState<string>("item-0");
@@ -214,13 +212,11 @@ const RegistroPartida = () => {
     const rounds: Round[] = [];
     const n = fixedPairs.length;
     if (n < 2) return [];
-    
     const ps = [...fixedPairs];
     if (n % 2 !== 0) {
         const dummy: Player = { id: 'dummy', name: 'Descansa', category: category, totalGames: 0, totalPoints: 0, efficiency: 0, medals: { gold: 0, silver: 0, bronze: 0 }, achievements: { king: 0, shield: 0, sword: 0 }, trophies: {first:0, second:0, third:0} };
         ps.push({ id: 'dummy-pair', player1: dummy, player2: dummy });
     }
-    
     const numTeams = ps.length;
     for (let r = 0; r < numRounds; r++) {
         const matches: Match[] = [];
@@ -275,14 +271,13 @@ const RegistroPartida = () => {
   const generateRounds = async () => {
     let newDocData: Omit<OngoingMatch, 'id'>;
     const finalName = eventName || (modality === '6loco' ? '6 Loco Individual' : modality === '6locoParejas' ? '6 Loco Parejas' : 'Liga');
-    
     if (modality === '6loco') {
         if (selectedPlayers.length < 8 || selectedPlayers.length % 4 !== 0) {
             toast({ title: "Error", description: "Se necesitan 8, 12 o 16 jugadores.", variant: "destructive" });
             return;
         }
         const rounds = generate6locoRounds();
-        if (rounds.length === 0) { toast({title: "Error", description: "No se pudo generar la rotación. Intenta de nuevo."}); return; }
+        if (rounds.length === 0) { toast({title: "Error", description: "No se pudo generar la rotación."}); return; }
         newDocData = { eventName: finalName, date, modality, selectedPlayers, rounds, fixedPairs: [], americanoRounds: [], category };
     } else if (modality === '6locoParejas') {
         if (fixedPairs.length < 2) {
@@ -299,7 +294,6 @@ const RegistroPartida = () => {
         const rounds = generateAmericanoRounds();
         newDocData = { eventName: finalName, date, modality, fixedPairs, americanoRounds: rounds, selectedPlayers: [], rounds: [], category };
     }
-    
     try {
         const newDocRef = await addDoc(collection(db!, "ongoingMatches"), newDocData);
         setSelectedMatch({ ...newDocData, id: newDocRef.id });
@@ -310,11 +304,9 @@ const RegistroPartida = () => {
 
   const calculatedResults = useMemo(() => {
     if (!selectedMatch || !selectedMatch.rounds || (selectedMatch.modality !== '6loco' && selectedMatch.modality !== '6locoParejas')) return [];
-    
     const isIndividual = selectedMatch.modality === '6loco';
     const compRounds = selectedMatch.rounds.filter(r => !r.isBonus);
     const stats: Record<string, any> = {};
-
     if (isIndividual) {
         selectedMatch.selectedPlayers.forEach(p => {
             stats[p.id] = { playerId: p.id, name: p.name, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
@@ -324,15 +316,12 @@ const RegistroPartida = () => {
             stats[pair.id] = { pairId: pair.id, name: `${pair.player1.name} & ${pair.player2.name}`, player1: pair.player1, player2: pair.player2, points: 0, g:0, e:0, p:0, wins: 0, draws: 0, losses: 0 };
         });
     }
-
     compRounds.forEach(round => {
         round.matches.forEach(match => {
             const { team1, team2, score1, score2 } = match;
             if (score1 === null || score2 === null) return;
-
             const t1Won = score1 > score2;
             const isDraw = score1 === score2;
-
             if (isIndividual) {
                 [team1.player1.id, team1.player2.id].forEach(id => {
                     if (stats[id]) {
@@ -358,7 +347,6 @@ const RegistroPartida = () => {
             }
         });
     });
-
     Object.values(stats).forEach(p => { p.g = p.wins; p.e = p.draws; p.p = p.losses; });
     return Object.values(stats).sort((a,b) => b.points - a.points || b.wins - a.wins || b.draws - a.draws);
   }, [selectedMatch]);
@@ -422,7 +410,6 @@ const RegistroPartida = () => {
         const collRef = collection(db, collName);
         const batch = writeBatch(db);
         const newDoc = doc(collRef);
-        
         const medalFields = ['medals.gold', 'medals.silver', 'medals.bronze'] as const;
 
         if(selectedMatch.modality === '6loco') {
@@ -435,15 +422,10 @@ const RegistroPartida = () => {
         } else if (selectedMatch.modality === '6locoParejas') {
             const results: DailyPairResult[] = calculatedResults.map(r => ({ pairId: r.pairId, player1: r.player1, player2: r.player2, points: r.points, g: r.g, p: r.p, e: r.e }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6locoParejas', category });
-            
             for(let i=0; i<Math.min(results.length, 3); i++) {
                 const res = results[i];
-                const playerIds = [res.player1.id, res.player2.id];
                 const field = medalFields[i];
-                for(const pid of playerIds) {
-                    const pRef = doc(db, 'players', pid);
-                    batch.update(pRef, { [field]: increment(1) });
-                }
+                [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
             }
         } else {
             const results: DailyPairResult[] = americanoRanking.map(r => ({ pairId: r.pairId, player1: r.team.player1, player2: r.team.player2, points: r.points, g: r.matchesWon, p: r.matchesLost, e: 0 }));
@@ -452,8 +434,8 @@ const RegistroPartida = () => {
         await batch.commit();
         await deleteDoc(doc(db, "ongoingMatches", selectedMatch.id));
         setSelectedMatch(null); setView('list');
-        toast({ title: "Éxito", description: "Evento guardado correctamente." });
-    } catch(e) { toast({title: "Error", description: "No se pudo guardar.", variant: "destructive"}); }
+        toast({ title: "Guardado" });
+    } catch(e) { toast({title: "Error", variant: "destructive"}); }
     finally { setIsSaving(false); }
   };
 
@@ -465,7 +447,7 @@ const RegistroPartida = () => {
       <CardContent className="space-y-2">
         {ongoingMatches.map(m => (
           <div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer flex justify-between items-center transition-colors">
-            <div><p className="font-bold">{m.eventName || 'Partida sin nombre'}</p><p className="text-xs text-muted-foreground">{m.date} - {m.modality === '6loco' ? 'Individual' : 'Parejas'}</p></div>
+            <div><p className="font-bold">{m.eventName || 'Partida'}</p><p className="text-xs text-muted-foreground">{m.date} - {m.modality}</p></div>
             <ArrowRight className="h-4 w-4 text-muted-foreground"/>
           </div>
         ))}
@@ -485,18 +467,24 @@ const RegistroPartida = () => {
           <Accordion type="single" collapsible className="w-full" value={openAccordion} onValueChange={setOpenAccordion}>
             {selectedMatch.rounds.map((r, ri) => (
               <AccordionItem value={`item-${ri}`} key={ri}><AccordionTrigger className={cn(r.isBonus && "gold-text")}>Ronda {ri+1} {r.isBonus && '(Bonus)'}</AccordionTrigger><AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 3xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {r.matches.map((m, mi) => (
                     <div key={mi} className="space-y-1">
-                      <div className="text-sm font-black text-blue-500 uppercase px-1">Cancha {m.courtNumber || mi + 1}</div>
-                      <div className='flex items-center gap-2 text-xs p-2 bg-muted rounded-md'>
-                        <div className='flex-1 text-right truncate'>{m.team1.player1.name} & {m.team1.player2.name}</div>
-                        <div className="flex items-center gap-1">
-                          <Input type="text" pattern="[0-6]*" value={m.score1 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team1', e.target.value)} className="w-10 h-8 text-center px-1" disabled={user?.role === 'guest'} />
-                          <span className="font-bold text-primary">-</span>
-                          <Input type="text" pattern="[0-6]*" value={m.score2 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team2', e.target.value)} className="w-10 h-8 text-center px-1" disabled={user?.role === 'guest'} />
+                      <div className="text-[10px] font-black text-blue-500 uppercase px-1">Cancha {m.courtNumber || mi + 1}</div>
+                      <div className='flex items-center gap-2 p-2 bg-muted rounded-md'>
+                        <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
+                            <span className='text-[10px] font-black uppercase text-right w-full truncate'>{m.team1.player1.name}</span>
+                            <span className='text-[10px] font-black uppercase text-right w-full truncate'>{m.team1.player2.name}</span>
                         </div>
-                        <div className='flex-1 truncate'>{m.team2.player1.name} & {m.team2.player2.name}</div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Input type="text" pattern="[0-6]*" inputMode="numeric" value={m.score1 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team1', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" disabled={user?.role === 'guest'} />
+                          <span className="font-bold text-primary">-</span>
+                          <Input type="text" pattern="[0-6]*" inputMode="numeric" value={m.score2 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team2', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" disabled={user?.role === 'guest'} />
+                        </div>
+                        <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
+                            <span className='text-[10px] font-black uppercase w-full truncate'>{m.team2.player1.name}</span>
+                            <span className='text-[10px] font-black uppercase w-full truncate'>{m.team2.player2.name}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -511,12 +499,12 @@ const RegistroPartida = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {r.matches.map((m, mi) => (
                     <div key={mi} className="p-3 border rounded-lg bg-background/50 space-y-2">
-                      <div className="text-sm font-black text-blue-500 uppercase border-b pb-1 mb-1">Cancha {m.courtNumber || mi + 1}</div>
-                      <div className="flex justify-between text-xs font-bold"><span className="flex-1 text-right">{m.team1.player1.name} / {m.team1.player2.name}</span><span className="px-2 text-primary">VS</span><span className="flex-1">{m.team2.player1.name} / {m.team2.player2.name}</span></div>
+                      <div className="text-[10px] font-black text-blue-500 uppercase border-b pb-1 mb-1">Cancha {m.courtNumber || mi + 1}</div>
+                      <div className="flex justify-between text-[10px] font-black uppercase"><span className="flex-1 text-right truncate">{m.team1.player1.name}/{m.team1.player2.name}</span><span className="px-2 text-primary">VS</span><span className="flex-1 truncate">{m.team2.player1.name}/{m.team2.player2.name}</span></div>
                       <div className="flex justify-center gap-4">{[1,2,3].map(s => (
-                        <div key={s} className="text-center space-y-1"><p className="text-[10px] opacity-50">Set {s}</p><div className="flex gap-1">
-                          <Input type="text" pattern="[0-7]*" className="w-8 h-8 text-center p-0" value={m[`set${s}_t1` as keyof AmericanoMatch] ?? ''} onChange={e => handleAmScoreChange(ri, mi, `set${s}_t1`, e.target.value)} disabled={user?.role === 'guest'} />
-                          <Input type="text" pattern="[0-7]*" className="w-8 h-8 text-center p-0" value={m[`set${s}_t2` as keyof AmericanoMatch] ?? ''} onChange={e => handleAmScoreChange(ri, mi, `set${s}_t2`, e.target.value)} disabled={user?.role === 'guest'} />
+                        <div key={s} className="text-center space-y-1"><p className="text-[9px] opacity-50 uppercase">Set {s}</p><div className="flex gap-1">
+                          <Input type="text" pattern="[0-7]*" inputMode="numeric" className="w-8 h-8 text-center p-0 text-xs" value={m[`set${s}_t1` as keyof AmericanoMatch] ?? ''} onChange={e => handleAmScoreChange(ri, mi, `set${s}_t1`, e.target.value)} disabled={user?.role === 'guest'} />
+                          <Input type="text" pattern="[0-7]*" inputMode="numeric" className="w-8 h-8 text-center p-0 text-xs" value={m[`set${s}_t2` as keyof AmericanoMatch] ?? ''} onChange={e => handleAmScoreChange(ri, mi, `set${s}_t2`, e.target.value)} disabled={user?.role === 'guest'} />
                         </div></div>
                       ))}</div>
                     </div>
@@ -527,20 +515,15 @@ const RegistroPartida = () => {
           </Accordion>
         )}
       </CardContent></Card>
-      <Card><CardHeader><CardTitle>Clasificación en Vivo</CardTitle></CardHeader><CardContent>
-        <Table><TableHeader><TableRow><TableHead className="w-12">#</TableHead><TableHead>{selectedMatch.modality === '6loco' ? 'Jugador' : 'Pareja'}</TableHead><TableHead className="text-center">Pts</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">E</TableHead><TableHead className="text-center">P</TableHead></TableRow></TableHeader><TableBody>
+      <Card><CardHeader><CardTitle className='text-lg'>Clasificación</CardTitle></CardHeader><CardContent>
+        <Table><TableHeader><TableRow><TableHead className="w-8">#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader><TableBody>
           {(selectedMatch.modality === '6loco' || selectedMatch.modality === '6locoParejas' ? calculatedResults : americanoRanking).map((p, i) => (
-            <TableRow key={i} className={i<3 ? 'bg-primary/5 font-bold':''}>
-              <TableCell className="flex items-center gap-1">{i+1}{i<3 && <Trophy className={cn("h-3 w-3", i===0?"text-yellow-400":i===1?"text-gray-400":"text-orange-400")}/>}</TableCell>
-              <TableCell className="truncate max-w-[120px]">{p.name}</TableCell>
-              <TableCell className="text-center text-primary">{p.points}</TableCell>
-              <TableCell className="text-center">{(p as any).g || (p as any).matchesWon}</TableCell>
-              <TableCell className="text-center">{(p as any).e || 0}</TableCell>
-              <TableCell className="text-center">{(p as any).p || (p as any).matchesLost}</TableCell>
+            <TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}>
+              <TableCell className="text-xs">{i+1}</TableCell><TableCell className="truncate max-w-[150px] text-xs uppercase">{p.name}</TableCell><TableCell className="text-center text-primary font-bold text-xs">{p.points}</TableCell>
             </TableRow>
           ))}
         </TableBody></Table>
-        {user?.role === 'admin' && <div className="flex justify-end mt-6"><Button onClick={saveFinalEvent} disabled={isSaving}><Sparkles className="mr-2 h-4 w-4"/>{isSaving ? 'Guardando...':'Guardar Evento'}</Button></div>}
+        {user?.role === 'admin' && <div className="flex justify-end mt-6"><Button onClick={saveFinalEvent} disabled={isSaving}><Sparkles className="mr-2 h-4 w-4"/>{isSaving ? '...':'Guardar'}</Button></div>}
       </CardContent></Card>
     </div>
   );
@@ -552,7 +535,7 @@ const RegistroPartida = () => {
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><Label>Fecha</Label><Input type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-            <div><Label>Nombre del Evento</Label><Input placeholder="Mizael, Mañana, etc." value={eventName} onChange={e => setEventName(e.target.value)} /></div>
+            <div><Label>Nombre</Label><Input placeholder="Mañana, Mizael, etc." value={eventName} onChange={e => setEventName(e.target.value)} /></div>
             <div className="md:col-span-2"><Label>Modalidad</Label><Select value={modality} onValueChange={v => { resetSetupState(); setModality(v as Modality); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="6loco">6 Loco (Individual)</SelectItem><SelectItem value="6locoParejas">6 Loco (Parejas)</SelectItem><SelectItem value="parejaFija">Liga</SelectItem></SelectContent></Select></div>
           </div>
           {modality === '6loco' ? (
@@ -560,14 +543,14 @@ const RegistroPartida = () => {
           ) : (
             <div className="space-y-4">
               <div><Label>Crear Pareja ({fixedPairs.length})</Label><div className="flex gap-2 mt-2">
-                <Select value={player1Id || ''} onValueChange={setPlayer1Id}><SelectTrigger><SelectValue placeholder="Jugador 1" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
-                <Select value={player2Id || ''} onValueChange={setPlayer2Id}><SelectTrigger><SelectValue placeholder="Jugador 2" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+                <Select value={player1Id || ''} onValueChange={setPlayer1Id}><SelectTrigger><SelectValue placeholder="J1" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+                <Select value={player2Id || ''} onValueChange={setPlayer2Id}><SelectTrigger><SelectValue placeholder="J2" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
                 <Button onClick={() => { const p1 = allPlayers.find(p => p.id === player1Id); const p2 = allPlayers.find(p => p.id === player2Id); if(p1 && p2) { setFixedPairs([...fixedPairs, { id: [p1.id, p2.id].sort().join('-'), player1: p1, player2: p2 }]); setPlayer1Id(null); setPlayer2Id(null); } }} size="icon"><PlusCircle/></Button>
               </div></div>
-              <div className="border rounded-md p-2 space-y-2">{fixedPairs.map(p => (<div key={p.id} className="flex justify-between bg-muted p-2 rounded">{p.player1.name} & {p.player2.name}<Button variant="ghost" size="icon" onClick={() => setFixedPairs(fixedPairs.filter(fp => fp.id !== p.id))}><Trash2 className="h-4 w-4"/></Button></div>))}</div>
+              <div className="border rounded-md p-2 space-y-2">{fixedPairs.map(p => (<div key={p.id} className="flex justify-between bg-muted p-2 rounded text-[10px] font-black uppercase">{p.player1.name} & {p.player2.name}<Button variant="ghost" size="icon" onClick={() => setFixedPairs(fixedPairs.filter(fp => fp.id !== p.id))}><Trash2 className="h-4 w-4"/></Button></div>))}</div>
             </div>
           )}
-          <div className="flex justify-end"><Button onClick={generateRounds} disabled={modality==='6loco'?selectedPlayers.length<8:fixedPairs.length<2}><Dices className="mr-2"/> Iniciar Partida</Button></div>
+          <div className="flex justify-end"><Button onClick={generateRounds} disabled={modality==='6loco'?selectedPlayers.length<8:fixedPairs.length<2}><Dices className="mr-2"/> Iniciar</Button></div>
         </div>
       )}</CardContent>
     </Card>
