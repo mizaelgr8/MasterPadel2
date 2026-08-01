@@ -1,3 +1,4 @@
+
 "use client";
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { collection, doc, updateDoc, deleteDoc, query, where, addDoc, onSnapshot, writeBatch, increment } from 'firebase/firestore';
@@ -439,18 +440,21 @@ const RegistroElevador = () => {
                 const results: DailyElevadorResult[] = sortedRanking.map(p => ({ playerId: p.playerId, name: p.name, gamesWon: p.gamesWon, gamesLost: p.gamesLost, pointsScored: p.pointsScored, pointsReceived: p.pointsReceived, pointsDifference: p.pointsScored - p.pointsReceived, finalCourt: p.finalCourt }));
                 const newDoc = doc(collection(db, "dailyElevadorEvents"));
                 batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevador', category });
+                
+                const medalFields = ['medals.gold', 'medals.silver', 'medals.bronze'] as const;
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const pRef = doc(db, 'players', results[i].playerId);
-                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
-                    batch.update(pRef, { [field]: increment(1) });
+                    batch.update(pRef, { [medalFields[i]]: increment(1) });
                 }
             } else {
                 const results: DailyPairResult[] = sortedRanking.map(p => ({ pairId: p.pairId, player1: p.player1, player2: p.player2, points: p.pointsScored, g: p.gamesWon, p: p.gamesLost, e: 0 }));
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevadorParejas', category });
+                
+                const medalFields = ['medals.gold', 'medals.silver', 'medals.bronze'] as const;
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const res = results[i];
-                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                    const field = medalFields[i];
                     [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
                 }
             }
@@ -534,7 +538,7 @@ const RegistroElevador = () => {
             </CardContent></Card>
         </div>
     );
-    
+
     return (
         <Card>
             <CardHeader><CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle><CardDescription>{category} Cat.</CardDescription></CardHeader>

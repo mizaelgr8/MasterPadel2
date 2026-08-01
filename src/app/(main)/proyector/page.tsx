@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -198,7 +199,7 @@ const ProyectorLiveStandings = () => {
             } else {
                 ongoingElevador.fixedPairs.forEach(pair => {
                     const ps = ongoingElevador.playerStats[pair.player1.id];
-                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, e: 0, p: 0, finalCourt: ps?.finalCourt || 0 };
+                    stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, player1: pair.player1, player2: pair.player2, points: 0, g: 0, e: 0, p: 0, finalCourt: ps?.finalCourt || 0 };
                 });
             }
 
@@ -364,16 +365,16 @@ const ProyectorOngoingMatch = () => {
                                                 <div key={mi} className='flex flex-col gap-1 p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
                                                     <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
                                                     <div className='flex items-center gap-2'>
-                                                        <div className='flex-1 text-right flex flex-col gap-0.5 overflow-hidden'>
+                                                        <div className='flex-1 text-right flex flex-col gap-0.5 overflow-hidden shrink-0'>
                                                             <span className='text-lg font-bold text-slate-200 uppercase truncate'>{match.team1.player1.name}</span>
                                                             <span className='text-lg font-bold text-slate-200 uppercase truncate'>{match.team1.player2.name}</span>
                                                         </div>
-                                                        <div className="flex items-center gap-2 px-2">
+                                                        <div className="flex items-center gap-2 px-2 shrink-0">
                                                             <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score1 ?? '-'}</div>
                                                             <span className="text-primary font-black">VS</span>
                                                             <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score2 ?? '-'}</div>
                                                         </div>
-                                                        <div className='flex-1 text-left flex flex-col gap-0.5 overflow-hidden'>
+                                                        <div className='flex-1 text-left flex flex-col gap-0.5 overflow-hidden shrink-0'>
                                                             <span className='text-lg font-bold text-slate-200 uppercase truncate'>{match.team2.player1.name}</span>
                                                             <span className='text-lg font-bold text-slate-200 uppercase truncate'>{match.team2.player2.name}</span>
                                                         </div>
@@ -441,8 +442,8 @@ const ProyectorOngoingMatch = () => {
                                                 <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
                                                 <div className='flex items-center gap-4 justify-between'>
                                                     <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player2.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player2.name}</span>
                                                     </div>
                                                     
                                                     <div className="flex items-center gap-2 shrink-0 px-4">
@@ -456,8 +457,8 @@ const ProyectorOngoingMatch = () => {
                                                     </div>
                                                     
                                                     <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player2.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -488,17 +489,19 @@ export default function ProyectorPage() {
         if (!db) return;
         setLoading(true);
         try {
-            const [playersSnap, dailySnap, elevadorSnap, monthlySnap] = await Promise.all([
+            const [playersSnap, dailySnap, elevadorSnap, monthlySnap, dailyPairsSnap] = await Promise.all([
                 getDocs(collection(db, "players")),
                 getDocs(collection(db, "dailyEvents")),
                 getDocs(collection(db, "dailyElevadorEvents")),
-                getDocs(collection(db, "monthlyRankings"))
+                getDocs(collection(db, "monthlyRankings")),
+                getDocs(collection(db, "dailyPairEvents"))
             ]);
 
             const allPlayers = playersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
             const allDaily = dailySnap.docs.map(d => d.data() as DailyEvent);
             const allElevador = elevadorSnap.docs.map(d => d.data() as DailyElevadorEvent);
             const allMonthly = monthlySnap.docs.map(d => d.data() as MonthlyRanking);
+            const allDailyPairs = dailyPairsSnap.docs.map(d => d.data() as any);
 
             const cats: Category[] = ['5ta', '4ta', '3ra', '2da', '1ra'];
             const finalRankings = cats.map(cat => {
@@ -536,6 +539,21 @@ export default function ProyectorPage() {
                             else if (idx === 1) stats[res.playerId].medals.silver++;
                             else if (idx === 2) stats[res.playerId].medals.bronze++;
                         }
+                    });
+                });
+
+                // Add medals from 6 Loco Parejas
+                allDailyPairs.filter(e => (cat === '4ta' ? (e.category === '4ta' || !e.category) : e.category === cat) && e.modality === '6locoParejas').forEach(event => {
+                    const sortedResults = [...event.results].sort((a, b) => b.points - a.points);
+                    sortedResults.forEach((result, idx) => {
+                        if (idx > 2) return;
+                        [result.player1.id, result.player2.id].forEach(pid => {
+                            if (stats[pid]) {
+                                if (idx === 0) stats[pid].medals.gold++;
+                                else if (idx === 1) stats[pid].medals.silver++;
+                                else if (idx === 2) stats[pid].medals.bronze++;
+                            }
+                        });
                     });
                 });
 
@@ -577,11 +595,13 @@ export default function ProyectorPage() {
         const unsubPlayers = onSnapshot(collection(db, "players"), calculateAllRankings);
         const unsubDaily = onSnapshot(collection(db, "dailyEvents"), calculateAllRankings);
         const unsubMonthly = onSnapshot(collection(db, "monthlyRankings"), calculateAllRankings);
+        const unsubDailyPairs = onSnapshot(collection(db, "dailyPairEvents"), calculateAllRankings);
         
         return () => {
             unsubPlayers();
             unsubDaily();
             unsubMonthly();
+            unsubDailyPairs();
         };
     }, [db, calculateAllRankings]);
     
