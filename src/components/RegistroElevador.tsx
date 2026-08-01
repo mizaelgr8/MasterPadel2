@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { collection, getDocs, doc, setDoc, getDoc, writeBatch, deleteDoc, query, where, addDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
@@ -23,7 +22,6 @@ import { useCategory } from '@/context/CategoryContext';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useFirebase } from '@/context/FirebaseContext';
 import { Skeleton } from './ui/skeleton';
-import { es } from 'date-fns/locale';
 
 const TOTAL_ROUNDS = 7;
 
@@ -45,7 +43,6 @@ const sortPlayersByRank = (players: Player[]): Player[] => {
         return b.totalGames - a.totalGames;
     });
 };
-
 
 const RegistroElevador = () => {
     const { db } = useFirebase();
@@ -204,7 +201,6 @@ const RegistroElevador = () => {
             score1: null, score2: null,
         };
     };
-    
 
     const startElevador = async () => {
         if (!db) return;
@@ -242,7 +238,6 @@ const RegistroElevador = () => {
                 };
             });
         } else {
-            // Elevador Parejas
             const numCourts = fixedPairs.length / 2;
             for (let i = 0; i < numCourts; i++) {
                 const p1 = fixedPairs[i * 2];
@@ -296,7 +291,6 @@ const RegistroElevador = () => {
         }
     };
     
-
     const handleScoreChange = (roundIndex: number, courtIndex: number, team: 'team1' | 'team2', value: string) => {
         if (!selectedMatch || user?.role === 'guest') return;
         const score = parseInt(value, 10);
@@ -409,7 +403,6 @@ const RegistroElevador = () => {
             if (modality === 'elevador') {
                 match = createMatchForCourt(playersForCourt, roundPreviousPairs);
             } else {
-                // Fixed pairs move together
                 match = {
                     team1: { player1: playersForCourt[0], player2: playersForCourt[1] },
                     team2: { player1: playersForCourt[2], player2: playersForCourt[3] },
@@ -555,7 +548,6 @@ const RegistroElevador = () => {
                 return a.finalCourt - b.finalCourt;
             });
         } else {
-            // Pair ranking logic: aggregate stats by pair
             const pairResults: any[] = [];
             fixedPairs.forEach(pair => {
                 const s = tempStats[pair.player1.id];
@@ -747,46 +739,43 @@ const RegistroElevador = () => {
                                 Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}
                             </AccordionTrigger>
                             <AccordionContent className={cn(round.isBonus && 'bg-yellow-400/10 p-4 rounded-md')}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 3xl:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {round.courts.map((court, courtIndex) => (
-                                    <Card key={court.courtNumber}>
-                                        <CardHeader className='pb-2'>
-                                            <CardTitle className="text-2xl font-black text-blue-500 uppercase">Cancha {court.courtNumber}</CardTitle>
+                                    <Card key={court.courtNumber} className="overflow-hidden">
+                                        <CardHeader className='pb-2 bg-muted/20'>
+                                            <CardTitle className="text-xl font-black text-blue-500 uppercase flex justify-between">
+                                                <span>Cancha {court.courtNumber}</span>
+                                            </CardTitle>
                                         </CardHeader>
-                                        <CardContent>
+                                        <CardContent className="pt-4">
                                             {court.match ? (
-                                                 <div className='flex items-center gap-4 p-4 bg-muted/30 rounded-xl border border-border/50'>
-                                                    {/* Team 1 */}
-                                                    <div className='flex-1 flex flex-col items-end gap-1'>
-                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team1.player1.name}</span>
-                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team1.player2.name}</span>
+                                                 <div className='flex items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border/50'>
+                                                    <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
+                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full text-right'>{court.match.team1.player1.name}</span>
+                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full text-right'>{court.match.team1.player2.name}</span>
                                                     </div>
-                                                    
-                                                    {/* Score Area */}
-                                                    <div className="flex items-center gap-2 shrink-0">
+                                                    <div className="flex items-center gap-1 shrink-0">
                                                         <Input 
                                                             type="text" 
                                                             inputMode="numeric"
                                                             value={court.match.score1 ?? ''} 
                                                             onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} 
-                                                            className="w-12 h-12 text-center text-xl font-black bg-background border-2 border-primary/20" 
+                                                            className="w-10 h-10 text-center text-lg font-black bg-background border-2 border-primary/20 p-0" 
                                                             disabled={user?.role === 'guest'}
                                                         />
-                                                        <span className='font-black text-primary text-xl'>:</span>
+                                                        <span className='font-black text-primary'>:</span>
                                                         <Input 
                                                             type="text" 
                                                             inputMode="numeric"
                                                             value={court.match.score2 ?? ''} 
                                                             onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} 
-                                                            className="w-12 h-12 text-center text-xl font-black bg-background border-2 border-primary/20" 
+                                                            className="w-10 h-10 text-center text-lg font-black bg-background border-2 border-primary/20 p-0" 
                                                             disabled={user?.role === 'guest'}
                                                         />
                                                     </div>
-                                                    
-                                                    {/* Team 2 */}
-                                                    <div className='flex-1 flex flex-col items-start gap-1'>
-                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team2.player1.name}</span>
-                                                        <span className='text-xs font-bold text-white uppercase whitespace-nowrap'>{court.match.team2.player2.name}</span>
+                                                    <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
+                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full'>{court.match.team2.player1.name}</span>
+                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full'>{court.match.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             ) : <p>Error al generar partido</p>}
@@ -826,7 +815,7 @@ const RegistroElevador = () => {
                                 {sortedRanking.map((p, index) => (
                                     <TableRow key={index} className={cn(index < 3 && "bg-primary/5 font-bold")}>
                                         <TableCell className="flex items-center gap-1">{index + 1} {getMedal(index)}</TableCell>
-                                        <TableCell className="truncate max-w-[150px]">{p.name}</TableCell>
+                                        <TableCell className="max-w-[150px]">{p.name}</TableCell>
                                         <TableCell className="text-center">{p.gamesWon}</TableCell>
                                         <TableCell className="text-center font-semibold text-primary">{p.pointsScored}</TableCell>
                                         <TableCell className="text-center">{p.finalCourt}</TableCell>
@@ -954,4 +943,3 @@ const RegistroElevador = () => {
 };
 
 export default RegistroElevador;
-

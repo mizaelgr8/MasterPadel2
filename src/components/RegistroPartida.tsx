@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useEffect, useState, useCallback } from 'react';
@@ -436,7 +435,6 @@ const RegistroPartida = () => {
             const results: DailyPairResult[] = calculatedResults.map(r => ({ pairId: r.pairId, player1: r.player1, player2: r.player2, points: r.points, g: r.g, p: r.p, e: r.e }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6locoParejas', category });
             
-            // Asignar medallas individuales a CADA integrante de las 3 mejores parejas
             for(let i=0; i<Math.min(results.length, 3); i++) {
                 const res = results[i];
                 const playerIds = [res.player1.id, res.player2.id];

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -14,7 +13,6 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
-// --- COMPONENTE DE RANKING GENERAL PARA COLUMNAS ---
 const ProyectorGeneralRankingColumn = ({ category, players }: { category: string, players: any[] }) => {
     return (
         <Card className="h-full bg-slate-900/50 border-slate-700 overflow-hidden flex flex-col shadow-2xl">
@@ -65,9 +63,6 @@ const ProyectorGeneralRankingColumn = ({ category, players }: { category: string
                                                 {med.silver > 0 && <span className="silver-text text-sm font-bold opacity-90">🥈{med.silver}</span>}
                                                 {med.bronze > 0 && <span className="bronze-text text-sm font-bold opacity-90">🥉{med.bronze}</span>}
                                             </div>
-                                            {ach.king === 0 && ach.shield === 0 && ach.sword === 0 && med.gold === 0 && med.silver === 0 && med.bronze === 0 && (
-                                                <span className="text-slate-600 text-xs">-</span>
-                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -75,15 +70,11 @@ const ProyectorGeneralRankingColumn = ({ category, players }: { category: string
                         })}
                     </TableBody>
                 </Table>
-                {players.length === 0 && (
-                    <div className="p-12 text-center text-slate-500 italic text-lg">No hay datos registrados.</div>
-                )}
             </CardContent>
         </Card>
     );
 };
 
-// --- LIVE STANDINGS COMPONENT ---
 const ProyectorLiveStandings = () => {
     const { db } = useFirebase();
     const { category } = useCategory();
@@ -163,7 +154,7 @@ const ProyectorLiveStandings = () => {
                     });
                 });
 
-                return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g || b.e - a.e);
+                return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
             } else if (ongoingMatch.modality === 'parejaFija') {
                 const stats: Record<string, any> = {};
                 ongoingMatch.fixedPairs.forEach(pair => {
@@ -225,8 +216,8 @@ const ProyectorLiveStandings = () => {
                             if (stats[id]) { stats[id].points += match.score2!; if (!t1Won) stats[id].g++; else stats[id].p++; }
                         });
                     } else {
-                        const pair1Id = getPairId(match.team1.player1.id, match.team1.player2.id);
-                        const pair2Id = getPairId(match.team2.player1.id, match.team2.player2.id);
+                        const pair1Id = [match.team1.player1.id, match.team1.player2.id].sort().join('-');
+                        const pair2Id = [match.team2.player1.id, match.team2.player2.id].sort().join('-');
                         if (stats[pair1Id]) { stats[pair1Id].points += match.score1!; if (t1Won) stats[pair1Id].g++; else stats[pair1Id].p++; }
                         if (stats[pair2Id]) { stats[pair2Id].points += match.score2!; if (!t1Won) stats[pair2Id].g++; else stats[pair2Id].p++; }
                     }
@@ -237,8 +228,6 @@ const ProyectorLiveStandings = () => {
         }
         return [];
     }, [ongoingMatch, ongoingElevador]);
-
-    const getPairId = (p1Id: string, p2Id: string) => [p1Id, p2Id].sort().join('-');
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
     
@@ -253,7 +242,7 @@ const ProyectorLiveStandings = () => {
     const title = ongoingMatch ? (ongoingMatch.eventName) : (ongoingElevador?.eventName || 'Elevador');
 
     return (
-        <Card className="h-full bg-slate-900/50 border-slate-700 shadow-xl">
+        <Card className="h-full bg-slate-900/50 border-slate-700 shadow-xl overflow-hidden">
             <CardHeader className="border-b border-slate-700">
                 <CardTitle className="text-3xl text-white flex items-center gap-3 font-headline">
                     <Trophy className="text-yellow-400 h-8 w-8"/> Clasificación en Vivo
@@ -270,7 +259,6 @@ const ProyectorLiveStandings = () => {
                             <TableHead className="text-xl text-slate-400">Nombre</TableHead>
                             <TableHead className="text-center text-xl text-slate-400">Pts</TableHead>
                             <TableHead className="text-center text-xl text-slate-400">G</TableHead>
-                            <TableHead className="text-center text-xl text-slate-400">E</TableHead>
                             <TableHead className="text-center text-xl text-slate-400">P</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -281,7 +269,6 @@ const ProyectorLiveStandings = () => {
                                 <TableCell className="font-bold text-xl truncate max-w-[200px]">{row.name.toUpperCase()}</TableCell>
                                 <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                                 <TableCell className="text-center text-xl font-semibold">{row.g}</TableCell>
-                                <TableCell className="text-center text-xl opacity-70">{row.e || 0}</TableCell>
                                 <TableCell className="text-center text-xl opacity-70">{row.p || 0}</TableCell>
                             </TableRow>
                         ))}
@@ -292,7 +279,6 @@ const ProyectorLiveStandings = () => {
     );
 };
 
-// --- ONGOING MATCH MARCADORES ---
 const ProyectorOngoingMatch = () => {
     const { db } = useFirebase();
     const { category } = useCategory();
@@ -357,13 +343,13 @@ const ProyectorOngoingMatch = () => {
     );
 
     return (
-        <Card className="h-full bg-slate-900/50 border-slate-700 shadow-xl">
+        <Card className="h-full bg-slate-900/50 border-slate-700 shadow-xl overflow-hidden">
             <CardHeader className="border-b border-slate-700">
                 <CardTitle className="text-3xl text-white flex items-center gap-3 font-headline">
                     <Sword className="text-yellow-400 h-8 w-8"/> Marcadores en Directo
                 </CardTitle>
             </CardHeader>
-            <CardContent className="py-4">
+            <CardContent className="py-4 overflow-y-auto max-h-[calc(100vh-250px)]">
                 <Accordion type="single" collapsible className="w-full" value={openAccordionItem} onValueChange={setOpenAccordionItem}>
                     {ongoingMatch ? (
                         ongoingMatch.modality === '6loco' || ongoingMatch.modality === '6locoParejas' ? (
@@ -443,13 +429,13 @@ const ProyectorOngoingMatch = () => {
                                 <AccordionContent>
                                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                         {round.courts.map((court, ci) => (
-                                            <div key={ci} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl'>
+                                            <div key={ci} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl overflow-hidden'>
                                                 <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
-                                                <div className='flex items-center gap-4'>
+                                                <div className='flex items-center gap-4 justify-between'>
                                                     {/* Team 1 stacked names */}
-                                                    <div className='flex-1 flex flex-col items-end gap-1'>
-                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team1.player1.name}</span>
-                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team1.player2.name}</span>
+                                                    <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full text-right'>{court.match?.team1.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full text-right'>{court.match?.team1.player2.name}</span>
                                                     </div>
                                                     
                                                     {/* Score centered */}
@@ -464,9 +450,9 @@ const ProyectorOngoingMatch = () => {
                                                     </div>
                                                     
                                                     {/* Team 2 stacked names */}
-                                                    <div className='flex-1 flex flex-col items-start gap-1'>
-                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team2.player1.name}</span>
-                                                        <span className='text-lg font-black text-slate-200 uppercase whitespace-nowrap'>{court.match?.team2.player2.name}</span>
+                                                    <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full'>{court.match?.team2.player1.name}</span>
+                                                        <span className='text-lg font-black text-slate-200 uppercase w-full'>{court.match?.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -596,7 +582,6 @@ export default function ProyectorPage() {
     
     return (
         <div className="bg-slate-900 min-h-screen text-white flex flex-col relative overflow-hidden">
-             {/* Header con controles - Se oculta en modo publicidad y aparece solo al hacer hover */}
              <header className={cn(
                  "text-center p-8 shrink-0 flex flex-col items-center transition-all duration-500 z-50",
                  displayMode === 'publicidad' ? "absolute top-0 left-0 right-0 opacity-0 hover:opacity-100 bg-slate-900/90 py-4" : "relative"
@@ -669,4 +654,3 @@ export default function ProyectorPage() {
         </div>
     );
 }
-
