@@ -215,8 +215,8 @@ const RegistroElevador = () => {
                 return;
             }
         } else {
-             if (fixedPairs.length < 2) {
-                toast({ title: "Error", description: `Debes configurar al menos 2 parejas.` });
+             if (fixedPairs.length < 2 || fixedPairs.length % 2 !== 0) {
+                toast({ title: "Error", description: `Debes configurar un número par de parejas (mínimo 2).` });
                 return;
             }
         }
@@ -243,7 +243,6 @@ const RegistroElevador = () => {
             });
         } else {
             // Elevador Parejas
-            // Rank pairs by average of player ranks? Or just maintain current selection order
             const numCourts = fixedPairs.length / 2;
             for (let i = 0; i < numCourts; i++) {
                 const p1 = fixedPairs[i * 2];
@@ -301,9 +300,9 @@ const RegistroElevador = () => {
     const handleScoreChange = (roundIndex: number, courtIndex: number, team: 'team1' | 'team2', value: string) => {
         if (!selectedMatch || user?.role === 'guest') return;
         const score = parseInt(value, 10);
-        if (value !== '' && (isNaN(score) || score < 0 || score > 7)) return;
+        if (value !== '' && (isNaN(score) || score < 0 || score > 6)) return;
 
-        const newRounds = [...selectedMatch.rounds];
+        const newRounds = JSON.parse(JSON.stringify(selectedMatch.rounds));
         const match = newRounds[roundIndex].courts[courtIndex].match;
         if (!match) return;
         
@@ -311,10 +310,10 @@ const RegistroElevador = () => {
 
         if (team === 'team1') {
             match.score1 = finalScore;
-            if(finalScore !== null) match.score2 = 7 - finalScore; else match.score2 = null;
+            if(finalScore !== null) match.score2 = 6 - finalScore; else match.score2 = null;
         } else {
             match.score2 = finalScore;
-            if(finalScore !== null) match.score1 = 7 - finalScore; else match.score1 = null;
+            if(finalScore !== null) match.score1 = 6 - finalScore; else match.score1 = null;
         }
         
         const docRef = doc(db, "ongoingElevador", selectedMatch.id);
@@ -364,7 +363,7 @@ const RegistroElevador = () => {
             });
         }
 
-        const numCourts = modality === 'elevador' ? parseInt(numPlayersStr, 10) / 4 : parseInt(numPlayersStr, 10) / 4;
+        const numCourts = parseInt(numPlayersStr, 10) / 4;
         const nextCourtPlayers: Record<number, ElevadorPlayer[]> = {};
         for(let i=1; i<=numCourts; i++) nextCourtPlayers[i] = [];
 
@@ -397,7 +396,7 @@ const RegistroElevador = () => {
 
         const newCourts: ElevadorCourt[] = [];
         for (let i = 1; i <= numCourts; i++) {
-             const playersForCourt = nextCourtPlayers[i].map(p => ({...allPlayers.find(ap => ap.id === p.id)!, court: i}));
+             const playersForCourt = nextCourtPlayers[i].map(p => ({...p, court: i}));
              
              playersForCourt.forEach(p => {
                 if(newStats[p.id]){
@@ -757,15 +756,15 @@ const RegistroElevador = () => {
                                         <CardContent>
                                             {court.match ? (
                                                  <div className='flex items-center gap-2 text-sm p-2 bg-muted rounded-md'>
-                                                    <div className='flex-1 text-right truncate'>
+                                                    <div className='flex-1 text-right truncate font-bold text-white'>
                                                         {court.match.team1.player1.name} / {court.match.team1.player2.name}
                                                     </div>
                                                     <div className="flex items-center gap-1">
-                                                        <Input type="text" pattern="[0-7]*" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
+                                                        <Input type="text" pattern="[0-6]*" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
                                                         <span className='font-bold text-primary'>-</span>
-                                                        <Input type="text" pattern="[0-7]*" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
+                                                        <Input type="text" pattern="[0-6]*" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
                                                     </div>
-                                                    <div className='flex-1 truncate'>
+                                                    <div className='flex-1 truncate font-bold text-white'>
                                                         {court.match.team2.player1.name} / {court.match.team2.player2.name}
                                                     </div>
                                                 </div>
@@ -922,7 +921,7 @@ const RegistroElevador = () => {
                         )}
 
                         <div className="flex justify-end">
-                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : fixedPairs.length < 2}>
+                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : (fixedPairs.length < 2 || fixedPairs.length % 2 !== 0)}>
                                 <Dices className="mr-2 h-4 w-4" /> Iniciar Elevador
                             </Button>
                         </div>
