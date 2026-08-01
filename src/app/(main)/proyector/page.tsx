@@ -379,7 +379,7 @@ const ProyectorOngoingMatch = () => {
                                                     <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
                                                     <div className='flex items-center gap-2'>
                                                         <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>
-                                                            {match.team1.player1.name} {ongoingMatch.modality !== 'parejaFija' ? `/ ${match.team1.player2.name}` : ''}
+                                                            {match.team1.player1.name} / {match.team1.player2.name}
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score1 ?? '-'}</div>
@@ -387,7 +387,7 @@ const ProyectorOngoingMatch = () => {
                                                             <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{match.score2 ?? '-'}</div>
                                                         </div>
                                                         <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>
-                                                            {match.team2.player1.name} {ongoingMatch.modality !== 'parejaFija' ? `/ ${match.team2.player2.name}` : ''}
+                                                            {match.team2.player1.name} / {match.team2.player2.name}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -441,21 +441,32 @@ const ProyectorOngoingMatch = () => {
                                     Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}
                                 </AccordionTrigger>
                                 <AccordionContent>
-                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                                         {round.courts.map((court, ci) => (
-                                            <div key={ci} className='flex flex-col gap-1 p-3 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
-                                                <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {court.courtNumber}</div>
-                                                <div className='flex items-center gap-2'>
-                                                    <div className='flex-1 text-right text-lg font-bold truncate text-slate-300'>
-                                                        {court.match?.team1.player1.name} / {court.match?.team1.player2.name}
+                                            <div key={ci} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl'>
+                                                <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
+                                                <div className='flex items-center gap-4'>
+                                                    {/* Team 1 stacked names */}
+                                                    <div className='flex-1 flex flex-col items-end gap-1'>
+                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team1.player1.name.toUpperCase()}</span>
+                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team1.player2.name.toUpperCase()}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score1 ?? '-'}</div>
-                                                        <span className="text-primary font-black">VS</span>
-                                                        <div className="w-14 h-14 flex items-center justify-center text-3xl font-black bg-slate-700 rounded text-white border border-slate-500">{court.match?.score2 ?? '-'}</div>
+                                                    
+                                                    {/* Score centered */}
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                                                            {court.match?.score1 ?? '-'}
+                                                        </div>
+                                                        <span className="text-primary font-black text-2xl">VS</span>
+                                                        <div className="w-16 h-16 flex items-center justify-center text-4xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+                                                            {court.match?.score2 ?? '-'}
+                                                        </div>
                                                     </div>
-                                                    <div className='flex-1 text-left text-lg font-bold truncate text-slate-300'>
-                                                        {court.match?.team2.player1.name} / {court.match?.team2.player2.name}
+                                                    
+                                                    {/* Team 2 stacked names */}
+                                                    <div className='flex-1 flex flex-col items-start gap-1'>
+                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team2.player1.name.toUpperCase()}</span>
+                                                        <span className='text-lg font-black text-slate-200 truncate max-w-[150px]'>{court.match?.team2.player2.name.toUpperCase()}</span>
                                                     </div>
                                                 </div>
                                             </div>

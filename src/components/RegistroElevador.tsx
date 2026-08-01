@@ -755,17 +755,38 @@ const RegistroElevador = () => {
                                         </CardHeader>
                                         <CardContent>
                                             {court.match ? (
-                                                 <div className='flex items-center gap-2 text-sm p-2 bg-muted rounded-md'>
-                                                    <div className='flex-1 text-right truncate font-bold text-white'>
-                                                        {court.match.team1.player1.name} / {court.match.team1.player2.name}
+                                                 <div className='flex items-center gap-4 p-4 bg-muted/30 rounded-xl border border-border/50'>
+                                                    {/* Team 1 */}
+                                                    <div className='flex-1 flex flex-col items-end gap-1'>
+                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team1.player1.name}</span>
+                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team1.player2.name}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Input type="text" pattern="[0-6]*" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
-                                                        <span className='font-bold text-primary'>-</span>
-                                                        <Input type="text" pattern="[0-6]*" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} className="w-10 h-8 text-center" disabled={user?.role === 'guest'}/>
+                                                    
+                                                    {/* Score Area */}
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <Input 
+                                                            type="text" 
+                                                            inputMode="numeric"
+                                                            value={court.match.score1 ?? ''} 
+                                                            onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} 
+                                                            className="w-12 h-12 text-center text-xl font-black bg-background border-2 border-primary/20" 
+                                                            disabled={user?.role === 'guest'}
+                                                        />
+                                                        <span className='font-black text-primary text-xl'>:</span>
+                                                        <Input 
+                                                            type="text" 
+                                                            inputMode="numeric"
+                                                            value={court.match.score2 ?? ''} 
+                                                            onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} 
+                                                            className="w-12 h-12 text-center text-xl font-black bg-background border-2 border-primary/20" 
+                                                            disabled={user?.role === 'guest'}
+                                                        />
                                                     </div>
-                                                    <div className='flex-1 truncate font-bold text-white'>
-                                                        {court.match.team2.player1.name} / {court.match.team2.player2.name}
+                                                    
+                                                    {/* Team 2 */}
+                                                    <div className='flex-1 flex flex-col items-start gap-1'>
+                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team2.player1.name}</span>
+                                                        <span className='text-xs font-bold text-white truncate max-w-[120px]'>{court.match.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             ) : <p>Error al generar partido</p>}
