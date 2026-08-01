@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, User, Info } from 'lucide-react';
+import { Users, Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, User, Info, Sword } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
@@ -65,7 +65,7 @@ const RegistroElevador = () => {
     const [eventName, setEventName] = useState('');
 
     // Match state
-    const [openAccordion, setOpenAccordion] = useState<string>("");
+    const [openAccordion, setOpenAccordion] = useState<string>("round-1");
     const [isSaving, setIsSaving] = useState(false);
     
     const resetSetupState = useCallback(() => {
@@ -491,26 +491,26 @@ const RegistroElevador = () => {
                         <AccordionContent>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {round.courts.map((court, ci) => (
-                                <Card key={ci} className="overflow-hidden">
-                                    <div className="bg-muted/20 p-2 text-xs font-black text-blue-500 uppercase text-center border-b">Cancha {court.courtNumber}</div>
-                                    <CardContent className="pt-4">
+                                <Card key={ci} className="overflow-hidden bg-slate-900/40 border-slate-800">
+                                    <div className="bg-primary/10 p-2 text-xs font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
+                                    <CardContent className="p-4">
                                         {court.match ? (
-                                             <div className='flex items-center gap-2 p-2 bg-muted/30 rounded-lg'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
-                                                    <span className='text-[11px] font-bold text-white uppercase w-full text-right'>{court.match.team1.player1.name}</span>
-                                                    <span className='text-[11px] font-bold text-white uppercase w-full text-right'>{court.match.team1.player2.name}</span>
+                                             <div className='flex items-center gap-2'>
+                                                <div className='flex-1 flex flex-col items-end gap-1.5 overflow-hidden'>
+                                                    <span className='text-xs font-bold text-white uppercase text-right leading-none w-full truncate'>{court.match.team1.player1.name}</span>
+                                                    <span className='text-xs font-bold text-white uppercase text-right leading-none w-full truncate'>{court.match.team1.player2.name}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <Input type="text" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-12 h-10 text-center text-lg font-black p-0" disabled={user?.role === 'guest'} />
-                                                    <span className='font-black'>:</span>
-                                                    <Input type="text" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-12 h-10 text-center text-lg font-black p-0" disabled={user?.role === 'guest'} />
+                                                <div className="flex items-center gap-1 shrink-0 px-2">
+                                                    <Input type="text" pattern="[0-6]*" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-12 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                    <span className='font-black text-primary'>:</span>
+                                                    <Input type="text" pattern="[0-6]*" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-12 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
-                                                    <span className='text-[11px] font-bold text-white uppercase w-full'>{court.match.team2.player1.name}</span>
-                                                    <span className='text-[11px] font-bold text-white uppercase w-full'>{court.match.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1.5 overflow-hidden'>
+                                                    <span className='text-xs font-bold text-white uppercase leading-none w-full truncate'>{court.match.team2.player1.name}</span>
+                                                    <span className='text-xs font-bold text-white uppercase leading-none w-full truncate'>{court.match.team2.player2.name}</span>
                                                 </div>
                                             </div>
-                                        ) : <p className='text-center text-xs'>Error en partido</p>}
+                                        ) : <div className="flex items-center justify-center p-4 text-destructive gap-2"><Info className='h-4 w-4'/> Error en partido</div>}
                                     </CardContent>
                                 </Card>
                             ))}

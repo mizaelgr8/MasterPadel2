@@ -441,8 +441,8 @@ const ProyectorOngoingMatch = () => {
                                                 <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
                                                 <div className='flex items-center gap-4 justify-between'>
                                                     <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right'>{court.match?.team1.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right'>{court.match?.team1.player2.name}</span>
+                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player1.name}</span>
+                                                        <span className='text-xl font-black text-slate-200 uppercase w-full text-right truncate'>{court.match?.team1.player2.name}</span>
                                                     </div>
                                                     
                                                     <div className="flex items-center gap-2 shrink-0 px-4">
@@ -456,8 +456,8 @@ const ProyectorOngoingMatch = () => {
                                                     </div>
                                                     
                                                     <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full'>{court.match?.team2.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full'>{court.match?.team2.player2.name}</span>
+                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player1.name}</span>
+                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player2.name}</span>
                                                     </div>
                                                 </div>
                                             </div>
