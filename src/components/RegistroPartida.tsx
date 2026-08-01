@@ -22,7 +22,6 @@ import { useCategory } from '@/context/CategoryContext';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useFirebase } from '@/context/FirebaseContext';
-import { Skeleton } from './ui/skeleton';
 
 const sortPlayersByRank = (players: Player[]): Player[] => {
     return [...players].sort((a, b) => {

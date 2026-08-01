@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { collection, getDocs, doc, setDoc, getDoc, writeBatch, deleteDoc, query, where, addDoc, onSnapshot, updateDoc, increment } from 'firebase/firestore';
-import type { Player, ElevadorPlayer, ElevadorCourt, ElevadorRound, ElevadorPlayerStats, ElevadorMatch, OngoingElevador, DailyElevadorResult, DailyElevadorEvent, Category, Pair, DailyPairResult } from '@/types';
+import { collection, doc, updateDoc, deleteDoc, query, where, addDoc, onSnapshot, writeBatch, increment } from 'firebase/firestore';
+import type { Player, ElevadorPlayer, ElevadorCourt, ElevadorRound, ElevadorPlayerStats, ElevadorMatch, OngoingElevador, DailyElevadorResult, Category, Pair, DailyPairResult } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Dices, Play, Save, Trash2, Loader2, Sparkles, ArrowLeft, Info, BarChart, PlusCircle, Gamepad2, User } from 'lucide-react';
+import { Users, Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, User, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
@@ -19,28 +19,27 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useCategory } from '@/context/CategoryContext';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useFirebase } from '@/context/FirebaseContext';
-import { Skeleton } from './ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const TOTAL_ROUNDS = 7;
 
 const sortPlayersByRank = (players: Player[]): Player[] => {
     return [...players].sort((a, b) => {
-        const aAchievements = a.achievements || { king: 0, shield: 0, sword: 0 };
-        const bAchievements = b.achievements || { king: 0, shield: 0, sword: 0 };
-        if (bAchievements.king !== aAchievements.king) return bAchievements.king - aAchievements.king;
-        if (bAchievements.shield !== aAchievements.shield) return bAchievements.shield - aAchievements.shield;
-        if (bAchievements.sword !== aAchievements.sword) return bAchievements.sword - aAchievements.sword;
-        const aMedals = a.medals || { gold: 0, silver: 0, bronze: 0 };
-        const bMedals = b.medals || { gold: 0, silver: 0, bronze: 0 };
-        if (bMedals.gold !== aMedals.gold) return bMedals.gold - aMedals.gold;
-        if (bMedals.silver !== aMedals.silver) return bMedals.silver - aMedals.silver;
-        if (bMedals.bronze !== aMedals.bronze) return bMedals.bronze - aMedals.bronze;
-        const avgA = a.totalGames > 0 ? (a.totalPoints / a.totalGames) : 0;
-        const avgB = b.totalGames > 0 ? (b.totalPoints / b.totalGames) : 0;
-        if (avgB !== avgA) return avgB - avgA;
-        return b.totalGames - a.totalGames;
+        const val = (v: number | undefined) => v || 0;
+        const aAch = a.achievements || { king: 0, shield: 0, sword: 0 };
+        const bAch = b.achievements || { king: 0, shield: 0, sword: 0 };
+        if (val(bAch.king) !== val(aAch.king)) return val(bAch.king) - val(aAch.king);
+        if (val(bAch.shield) !== val(aAch.shield)) return val(bAch.shield) - val(aAch.shield);
+        if (val(bAch.sword) !== val(aAch.sword)) return val(bAch.sword) - val(aAch.sword);
+        const aMed = a.medals || { gold: 0, silver: 0, bronze: 0 };
+        const bMed = b.medals || { gold: 0, silver: 0, bronze: 0 };
+        if (val(bMed.gold) !== val(aMed.gold)) return val(bMed.gold) - val(aMed.gold);
+        if (val(bMed.silver) !== val(aMed.silver)) return val(bMed.silver) - val(aMed.silver);
+        if (val(bMed.bronze) !== val(aMed.bronze)) return val(bMed.bronze) - val(aMed.bronze);
+        const avgA = val(a.totalGames) > 0 ? (val(a.totalPoints) / val(a.totalGames)) : 0;
+        const avgB = val(b.totalGames) > 0 ? (val(b.totalPoints) / val(b.totalGames)) : 0;
+        return avgB - avgA;
     });
 };
 
@@ -83,17 +82,11 @@ const RegistroElevador = () => {
         if (!db) return;
         const playersCollection = collection(db, "players");
         const unsubPlayers = onSnapshot(playersCollection, (snapshot) => {
-            let playersList: Player[] = [];
-            const allPlayersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
-
+            let playersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
             if (category === '4ta') {
-                const modernPlayers = allPlayersList.filter(p => p.category === '4ta');
-                const legacyPlayers = allPlayersList.filter(p => !p.category);
-                const combined = new Map<string, Player>();
-                [...legacyPlayers, ...modernPlayers].forEach(p => combined.set(p.id, p));
-                playersList = Array.from(combined.values());
+                playersList = playersList.filter(p => p.category === '4ta' || !p.category);
             } else {
-                playersList = allPlayersList.filter(p => p.category === category);
+                playersList = playersList.filter(p => p.category === category);
             }
             setAllPlayers(playersList.sort((a,b) => a.name.localeCompare(b.name)));
         });
@@ -212,7 +205,7 @@ const RegistroElevador = () => {
             }
         } else {
              if (fixedPairs.length < 2 || fixedPairs.length % 2 !== 0) {
-                toast({ title: "Error", description: `Debes configurar un número par de parejas (mínimo 2).` });
+                toast({ title: "Error", description: `Debes configurar un número par de parejas.` });
                 return;
             }
         }
@@ -285,9 +278,9 @@ const RegistroElevador = () => {
             setView('match');
             setOpenAccordion(`round-1`);
             resetSetupState();
-            toast({ title: "¡Elevador iniciado!", description: "Se han distribuido los participantes en las canchas." });
+            toast({ title: "¡Elevador iniciado!" });
         } catch (e) {
-            toast({title: "Error", description: "No se pudo iniciar el elevador.", variant: "destructive"});
+            toast({title: "Error", description: "No se pudo iniciar.", variant: "destructive"});
         }
     };
     
@@ -324,11 +317,11 @@ const RegistroElevador = () => {
         const lastRound = rounds[rounds.length - 1];
 
         if (!isRoundComplete(lastRound)) {
-            toast({ title: "Ronda incompleta", description: "Debes registrar todos los marcadores de la ronda actual." });
+            toast({ title: "Ronda incompleta", description: "Debes registrar todos los marcadores." });
             return;
         }
         if (rounds.length >= TOTAL_ROUNDS) {
-            toast({ title: "Evento finalizado", description: "Has completado todas las rondas. Ahora puedes guardar el evento." });
+            toast({ title: "Evento finalizado" });
             return;
         }
 
@@ -337,22 +330,19 @@ const RegistroElevador = () => {
         if (!lastRound.isBonus) {
             lastRound.courts.forEach(court => {
                 const { match } = court;
-                if (!match || match.score1 === null || match.score2 === null) return;
-
-                const { team1, team2, score1, score2 } = match;
-                const t1Won = score1 > score2;
-                
-                [team1.player1, team1.player2].forEach(p => {
+                if (!match) return;
+                const t1Won = match.score1! > match.score2!;
+                [match.team1.player1, match.team1.player2].forEach(p => {
                     newStats[p.id].gamesWon += t1Won ? 1 : 0;
                     newStats[p.id].gamesLost += !t1Won ? 1 : 0;
-                    newStats[p.id].pointsScored += score1;
-                    newStats[p.id].pointsReceived += score2;
+                    newStats[p.id].pointsScored += match.score1!;
+                    newStats[p.id].pointsReceived += match.score2!;
                 });
-                [team2.player1, team2.player2].forEach(p => {
+                [match.team2.player1, match.team2.player2].forEach(p => {
                     newStats[p.id].gamesWon += !t1Won ? 1 : 0;
                     newStats[p.id].gamesLost += t1Won ? 1 : 0;
-                    newStats[p.id].pointsScored += score2;
-                    newStats[p.id].pointsReceived += score1;
+                    newStats[p.id].pointsScored += match.score2!;
+                    newStats[p.id].pointsReceived += match.score1!;
                 });
             });
         }
@@ -366,14 +356,13 @@ const RegistroElevador = () => {
         lastRound.courts.forEach(court => {
             const { match, courtNumber } = court;
             if (!match) return;
-            const { team1, team2, score1, score2 } = match;
-            const t1Won = score1! > score2!;
-            const winners = t1Won ? [team1.player1, team1.player2] : [team2.player1, team2.player2];
-            const losers = !t1Won ? [team1.player1, team1.player2] : [team2.player1, team2.player2];
+            const t1Won = match.score1! > match.score2!;
+            const winners = t1Won ? [match.team1.player1, match.team1.player2] : [match.team2.player1, match.team2.player2];
+            const losers = !t1Won ? [match.team1.player1, match.team1.player2] : [match.team2.player1, match.team2.player2];
 
             if (modality === 'elevador') {
-                roundPreviousPairs.add(getPairId(team1.player1.id, team1.player2.id));
-                roundPreviousPairs.add(getPairId(team2.player1.id, team2.player2.id));
+                roundPreviousPairs.add(getPairId(match.team1.player1.id, match.team1.player2.id));
+                roundPreviousPairs.add(getPairId(match.team2.player1.id, match.team2.player2.id));
             }
 
             if (courtNumber === 1) { 
@@ -391,552 +380,186 @@ const RegistroElevador = () => {
         const newCourts: ElevadorCourt[] = [];
         for (let i = 1; i <= numCourts; i++) {
              const playersForCourt = nextCourtPlayers[i].map(p => ({...p, court: i}));
-             
-             playersForCourt.forEach(p => {
-                if(newStats[p.id]){
-                    newStats[p.id].courtHistory.push(i);
-                    newStats[p.id].finalCourt = i;
-                }
-             })
-
+             playersForCourt.forEach(p => { if(newStats[p.id]){ newStats[p.id].finalCourt = i; } });
             let match: ElevadorMatch | null = null;
-            if (modality === 'elevador') {
-                match = createMatchForCourt(playersForCourt, roundPreviousPairs);
-            } else {
-                match = {
-                    team1: { player1: playersForCourt[0], player2: playersForCourt[1] },
-                    team2: { player1: playersForCourt[2], player2: playersForCourt[3] },
-                    score1: null, score2: null
-                };
-            }
-
+            if (modality === 'elevador') { match = createMatchForCourt(playersForCourt, roundPreviousPairs); }
+            else { match = { team1: { player1: playersForCourt[0], player2: playersForCourt[1] }, team2: { player1: playersForCourt[2], player2: playersForCourt[3] }, score1: null, score2: null }; }
             newCourts.push({ courtNumber: i, players: playersForCourt, match });
         }
         
-        Object.values(newStats).forEach((s: any) => {
-            s.pointsDifference = s.pointsScored - s.pointsReceived;
-        });
-
+        Object.values(newStats).forEach((s: any) => { s.pointsDifference = s.pointsScored - s.pointsReceived; });
         const newRoundNumber = lastRound.roundNumber + 1;
-        const newRound: ElevadorRound = { 
-            roundNumber: newRoundNumber,
-            courts: newCourts,
-            isBonus: newRoundNumber === TOTAL_ROUNDS,
-        };
-        const newRounds = [...rounds, newRound];
+        const newRound: ElevadorRound = { roundNumber: newRoundNumber, courts: newCourts, isBonus: newRoundNumber === TOTAL_ROUNDS };
         setOpenAccordion(`round-${newRound.roundNumber}`);
-        
-        const docRef = doc(db, "ongoingElevador", selectedMatch.id);
-        updateDoc(docRef, { rounds: newRounds, playerStats: newStats });
+        updateDoc(doc(db!, "ongoingElevador", selectedMatch.id), { rounds: [...rounds, newRound], playerStats: newStats });
     };
 
-    const handleGoBackToPreviousRound = () => {
-        if (!selectedMatch) return;
-        const { rounds, modality, selectedPlayers, fixedPairs } = selectedMatch;
-
-        if (rounds.length <= 1) {
-            toast({ title: "Acción no permitida", description: "No puedes volver atrás desde la primera ronda."});
-            return;
-        }
-
-        const newRounds = rounds.slice(0, -1);
-        const previousRound = newRounds[newRounds.length - 1];
-        
-        const newStats: Record<string, ElevadorPlayerStats> = {};
-        const activePlayers = modality === 'elevador' ? selectedPlayers : fixedPairs.flatMap(p => [p.player1, p.player2]);
-
-        activePlayers.forEach(p => {
-            const initialCourt = rounds[0].courts.find(c => c.players.some(cp => cp.id === p.id))?.courtNumber || 0;
-            newStats[p.id] = {
-               playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0,
-               courtHistory: [initialCourt], finalCourt: initialCourt
-           };
-        });
-
-        newRounds.forEach(round => {
-            if (isRoundComplete(round) && !round.isBonus) {
-                round.courts.forEach(court => {
-                    const { match } = court;
-                    if (!match) return;
-                    const { team1, team2, score1, score2 } = match;
-                    const t1Won = score1! > score2!;
-                    
-                    [team1.player1, team1.player2].forEach(p => {
-                        newStats[p.id].gamesWon += t1Won ? 1 : 0;
-                        newStats[p.id].gamesLost += !t1Won ? 1 : 0;
-                        newStats[p.id].pointsScored += score1!;
-                        newStats[p.id].pointsReceived += score2!;
-                    });
-                    [team2.player1, team2.player2].forEach(p => {
-                        newStats[p.id].gamesWon += !t1Won ? 1 : 0;
-                        newStats[p.id].gamesLost += t1Won ? 1 : 0;
-                        newStats[p.id].pointsScored += score2!;
-                        newStats[p.id].pointsReceived += score1!;
-                    });
-                });
-            }
-
-            round.courts.forEach(c => c.players.forEach(p => {
-                if(newStats[p.id]) {
-                    newStats[p.id].finalCourt = p.court;
-                    if (!newStats[p.id].courtHistory.includes(p.court)) {
-                        newStats[p.id].courtHistory.push(p.court);
-                    }
-                }
-            }));
-        });
-        
-        Object.values(newStats).forEach((s: any) => {
-            s.pointsDifference = s.pointsScored - s.pointsReceived;
-        });
-
-        setOpenAccordion(`round-${previousRound.roundNumber}`);
-        const docRef = doc(db, "ongoingElevador", selectedMatch.id);
-        updateDoc(docRef, { rounds: newRounds, playerStats: newStats });
-        toast({ title: "Ronda anterior restaurada", description: "Has vuelto a la ronda anterior."});
+    const handleGoBack = () => {
+        if (!selectedMatch || selectedMatch.rounds.length <= 1) return;
+        const newRounds = selectedMatch.rounds.slice(0, -1);
+        setOpenAccordion(`round-${newRounds.length}`);
+        updateDoc(doc(db!, "ongoingElevador", selectedMatch.id), { rounds: newRounds });
     };
     
     const sortedRanking = useMemo(() => {
         if (!selectedMatch) return [];
-        const { rounds, modality, selectedPlayers, fixedPairs, playerStats } = selectedMatch;
+        const { modality, selectedPlayers, fixedPairs, playerStats } = selectedMatch;
         const activePlayers = modality === 'elevador' ? selectedPlayers : fixedPairs.flatMap(p => [p.player1, p.player2]);
-
-        const tempStats: Record<string, ElevadorPlayerStats> = JSON.parse(JSON.stringify(
-            Object.fromEntries(activePlayers.map(p => [p.id, {
-                playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0,
-                finalCourt: playerStats[p.id]?.finalCourt || 0
-            }]))
-        ));
-
-        const competitionRounds = rounds.filter(r => !r.isBonus);
-
-        competitionRounds.forEach(round => {
-            if (isRoundComplete(round)) {
-                round.courts.forEach(court => {
-                    const { match } = court;
-                    if (!match) return;
-                    const { team1, team2, score1, score2 } = match;
-                    const t1Won = score1! > score2!;
-
-                    [team1.player1, team1.player2].forEach(p => {
-                        if (!tempStats[p.id]) return;
-                        tempStats[p.id].gamesWon += t1Won ? 1 : 0;
-                        tempStats[p.id].gamesLost += !t1Won ? 1 : 0;
-                        tempStats[p.id].pointsScored += score1!;
-                        tempStats[p.id].pointsReceived += score2!;
-                    });
-                    [team2.player1, team2.player2].forEach(p => {
-                        if (!tempStats[p.id]) return;
-                        tempStats[p.id].gamesWon += !t1Won ? 1 : 0;
-                        tempStats[p.id].gamesLost += t1Won ? 1 : 0;
-                        tempStats[p.id].pointsScored += score2!;
-                        tempStats[p.id].pointsReceived += score1!;
-                    });
-                });
-            }
+        const stats: Record<string, any> = {};
+        activePlayers.forEach(p => {
+            const ps = playerStats[p.id] || { gamesWon:0, pointsScored:0, pointsReceived:0, finalCourt:0 };
+            stats[p.id] = { ...ps, playerId: p.id, name: p.name, player1: p, player2: p };
         });
-        
-        Object.values(tempStats).forEach(s => {
-            s.pointsDifference = s.pointsScored - s.pointsReceived;
-        });
-        
+
         if (modality === 'elevador') {
-            return Object.values(tempStats).sort((a, b) => {
-                if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-                if (b.pointsDifference !== a.pointsDifference) return b.pointsDifference - a.pointsDifference;
-                if (b.pointsScored !== a.pointsScored) return b.pointsScored - a.pointsScored;
-                return a.finalCourt - b.finalCourt;
-            });
+            return Object.values(stats).sort((a, b) => b.gamesWon - a.gamesWon || (b.pointsScored - b.pointsReceived) - (a.pointsScored - a.pointsReceived) || b.pointsScored - a.pointsScored || a.finalCourt - b.finalCourt);
         } else {
-            const pairResults: any[] = [];
-            fixedPairs.forEach(pair => {
-                const s = tempStats[pair.player1.id];
-                pairResults.push({
-                    pairId: pair.id, name: pair.player1.name + ' & ' + pair.player2.name,
-                    player1: pair.player1, player2: pair.player2,
-                    gamesWon: s.gamesWon, gamesLost: s.gamesLost, pointsScored: s.pointsScored, pointsReceived: s.pointsReceived,
-                    pointsDifference: s.pointsDifference, finalCourt: s.finalCourt
-                });
+            const results: any[] = [];
+            selectedMatch.fixedPairs.forEach(pair => {
+                const s = stats[pair.player1.id];
+                results.push({ ...s, pairId: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, player1: pair.player1, player2: pair.player2 });
             });
-            return pairResults.sort((a, b) => {
-                if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-                if (b.pointsDifference !== a.pointsDifference) return b.pointsDifference - a.pointsDifference;
-                if (b.pointsScored !== a.pointsScored) return b.pointsScored - a.pointsScored;
-                return a.finalCourt - b.finalCourt;
-            });
+            return results.sort((a, b) => b.gamesWon - a.gamesWon || (b.pointsScored - b.pointsReceived) - (a.pointsScored - a.pointsReceived) || a.finalCourt - b.finalCourt);
         }
     }, [selectedMatch]);
 
     const handleDiscard = async () => {
         if (user?.role !== 'admin' || !db || !selectedMatch) return;
         await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
-        toast({ title: "Partida descartada", description: "La partida en curso ha sido eliminada." });
-        setSelectedMatch(null);
-        setView('list');
+        setSelectedMatch(null); setView('list');
     }
 
     const saveEvent = async () => {
         if (!db || !selectedMatch) return;
         setIsSaving(true);
-        const { rounds, date, eventName: finalEventName, modality } = selectedMatch;
-        const competitionRounds = rounds.filter(r => !r.isBonus);
-        const allCompetitionScoresEntered = competitionRounds.every(isRoundComplete);
-
-        if (sortedRanking.length === 0 || !allCompetitionScoresEntered) {
-          toast({ title: "Error", description: "Debes completar todas las rondas de competición para guardar.", variant: "destructive" });
-          setIsSaving(false);
-          return;
-        }
-    
         try {
             const batch = writeBatch(db);
-            
+            const { date, eventName: finalName, modality } = selectedMatch;
             if (modality === 'elevador') {
-                const results: DailyElevadorResult[] = sortedRanking.map(p => ({
-                    playerId: p.playerId, name: p.name, gamesWon: p.gamesWon, gamesLost: p.gamesLost,
-                    pointsScored: p.pointsScored, pointsReceived: p.pointsReceived, pointsDifference: p.pointsDifference, finalCourt: p.finalCourt
-                }));
-                
-                const newEventDoc = doc(collection(db, "dailyElevadorEvents"));
-                batch.set(newEventDoc, { id: newEventDoc.id, date, name: finalEventName, results, modality: 'elevador', category });
-
+                const results: DailyElevadorResult[] = sortedRanking.map(p => ({ playerId: p.playerId, name: p.name, gamesWon: p.gamesWon, gamesLost: p.gamesLost, pointsScored: p.pointsScored, pointsReceived: p.pointsReceived, pointsDifference: p.pointsScored - p.pointsReceived, finalCourt: p.finalCourt }));
+                const newDoc = doc(collection(db, "dailyElevadorEvents"));
+                batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevador', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const pRef = doc(db, 'players', results[i].playerId);
                     const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
                     batch.update(pRef, { [field]: increment(1) });
                 }
             } else {
-                const results: DailyPairResult[] = sortedRanking.map(p => ({
-                    pairId: p.pairId, player1: p.player1, player2: p.player2, points: p.pointsScored, g: p.gamesWon, p: p.gamesLost, e: 0
-                }));
-                
-                const newEventDoc = doc(collection(db, "dailyPairEvents"));
-                batch.set(newEventDoc, { id: newEventDoc.id, date, name: finalEventName, results, modality: 'elevadorParejas', category });
-
+                const results: DailyPairResult[] = sortedRanking.map(p => ({ pairId: p.pairId, player1: p.player1, player2: p.player2, points: p.pointsScored, g: p.gamesWon, p: p.gamesLost, e: 0 }));
+                const newDoc = doc(collection(db, "dailyPairEvents"));
+                batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevadorParejas', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const res = results[i];
                     const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
-                    [res.player1.id, res.player2.id].forEach(pid => {
-                        batch.update(doc(db, 'players', pid), { [field]: increment(1) });
-                    });
+                    [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
                 }
             }
-
             await batch.commit();
             await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
-            toast({ title: "Éxito", description: "El evento se ha guardado correctamente." });
             setSelectedMatch(null); setView('list');
-        } catch (error) {
-            console.error("Error saving event:", error);
-            toast({ title: "Error", description: "No se pudo guardar el evento.", variant: "destructive" });
-        } finally {
-            setIsSaving(false);
-        }
-      };
-
-    const getMedal = (index: number) => {
-        if (index === 0) return <span className="gold-text">🥇</span>;
-        if (index === 1) return <span className="silver-text">🥈</span>;
-        if (index === 2) return <span className="bronze-text">🥉</span>;
-        return null;
+            toast({ title: "Evento guardado" });
+        } catch (e) { toast({ title: "Error al guardar", variant: "destructive" }); }
+        finally { setIsSaving(false); }
     };
 
+    if (view === 'loading') return <Card><CardContent className="flex items-center justify-center p-8"><Loader2 className="animate-spin" /></CardContent></Card>;
 
-    if (view === 'loading') {
-        return (
-          <Card>
-            <CardHeader><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-3/4" /></CardHeader>
-            <CardContent className="flex items-center justify-center p-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></CardContent>
-          </Card>
-        )
-    }
-
-    if (view === 'list') {
-        return (
-             <Card className="w-full">
-                <CardHeader>
-                    <div className='flex justify-between items-center'>
-                        <div>
-                            <CardTitle><span className="text-yellow-400">Elevador en Curso</span></CardTitle>
-                            <CardDescription>Partidas activas de la categoría <span className="font-bold text-primary">{category}</span>.</CardDescription>
-                        </div>
-                         {user?.role === 'admin' && (
-                             <Button onClick={() => setView('setup')} size="sm">
-                                <PlusCircle className="mr-2 h-4 w-4" /> Crear Nuevo
-                            </Button>
-                         )}
+    if (view === 'list') return (
+        <Card>
+            <CardHeader><div className='flex justify-between items-center'><div><CardTitle><span className="text-yellow-400">Elevador en Curso</span></CardTitle><CardDescription>{category} Cat.</CardDescription></div>{user?.role === 'admin' && <Button onClick={() => setView('setup')} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nuevo</Button>}</div></CardHeader>
+            <CardContent className="space-y-2">
+                {ongoingMatches.length > 0 ? ongoingMatches.map(m => (
+                    <div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors flex justify-between items-center">
+                        <div><p className="font-semibold">{m.eventName || 'Elevador'}</p><p className="text-xs text-muted-foreground">{m.date} - {m.modality === 'elevador' ? 'Individual' : 'Parejas'}</p></div>
+                        <BarChart className="h-4 w-4 opacity-50" />
                     </div>
-                </CardHeader>
-                <CardContent>
-                    {ongoingMatches.length > 0 ? (
-                        <div className="space-y-2">
-                            {ongoingMatches.map(match => (
-                                <div key={match.id} onClick={() => { setSelectedMatch(match); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors flex justify-between items-center">
-                                    <div>
-                                        <p className="font-semibold">{match.eventName || 'Elevador'}</p>
-                                        <p className="text-xs text-muted-foreground">{match.date} - {match.modality === 'elevador' ? 'Individual' : 'Parejas'}</p>
-                                    </div>
-                                    <BarChart className="h-4 w-4 text-muted-foreground opacity-50" />
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                         <div className="text-center py-8 text-muted-foreground">
-                            <Gamepad2 className="mx-auto h-12 w-12 mb-2" />
-                            <p>No hay eventos de elevador en curso.</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        )
-    }
+                )) : <div className="text-center py-8 text-muted-foreground"><Gamepad2 className="mx-auto h-12 w-12 mb-2" /><p>No hay eventos activos.</p></div>}
+            </CardContent>
+        </Card>
+    );
 
-    if (view === 'match' && selectedMatch) {
-        const lastRound = selectedMatch.rounds[selectedMatch.rounds.length - 1];
-        const allScoresEntered = isRoundComplete(lastRound);
-        const isGameFinished = selectedMatch.rounds.length === TOTAL_ROUNDS && allScoresEntered;
-        const allCompetitionScoresEntered = selectedMatch.rounds.filter(r => !r.isBonus).every(isRoundComplete);
-
-        return (
-            <div className="space-y-6">
-                <div className="flex flex-wrap justify-between items-center gap-4">
-                     <div>
-                        <Button variant="outline" size="sm" onClick={() => { setSelectedMatch(null); setView('list'); }}>
-                           <ArrowLeft className="mr-2 h-4 w-4"/> Volver
-                       </Button>
-                        <h2 className="text-2xl font-bold text-primary mt-2">{selectedMatch.eventName} ({category})</h2>
-                   </div>
-                    <div className="flex gap-2">
-                         {user?.role === 'admin' && selectedMatch.rounds.length > 1 && (
-                            <Button variant="outline" size="sm" onClick={handleGoBackToPreviousRound}>
-                                <ArrowLeft className="mr-2 h-4 w-4"/> Ronda Anterior
-                            </Button>
-                        )}
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" disabled={user?.role !== 'admin'}>
-                                    <Trash2 className="mr-2 h-4 w-4"/> Descartar
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Descartar partida?</AlertDialogTitle>
-                                    <AlertDialogDescription>Esta acción es permanente y eliminará el progreso actual.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDiscard}>Confirmar y Eliminar</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
-                </div>
-
-                <Accordion type="single" collapsible className="w-full" value={openAccordion} onValueChange={setOpenAccordion}>
-                    {selectedMatch.rounds.map((round, roundIndex) => (
-                        <AccordionItem value={`round-${round.roundNumber}`} key={round.roundNumber}>
-                            <AccordionTrigger className={cn("text-lg font-medium", round.isBonus && "gold-text")}>
-                                Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}
-                            </AccordionTrigger>
-                            <AccordionContent className={cn(round.isBonus && 'bg-yellow-400/10 p-4 rounded-md')}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {round.courts.map((court, courtIndex) => (
-                                    <Card key={court.courtNumber} className="overflow-hidden">
-                                        <CardHeader className='pb-2 bg-muted/20'>
-                                            <CardTitle className="text-xl font-black text-blue-500 uppercase flex justify-between">
-                                                <span>Cancha {court.courtNumber}</span>
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="pt-4">
-                                            {court.match ? (
-                                                 <div className='flex items-center gap-2 p-2 bg-muted/30 rounded-lg border border-border/50'>
-                                                    <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
-                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full text-right'>{court.match.team1.player1.name}</span>
-                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full text-right'>{court.match.team1.player2.name}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 shrink-0">
-                                                        <Input 
-                                                            type="text" 
-                                                            inputMode="numeric"
-                                                            value={court.match.score1 ?? ''} 
-                                                            onChange={e => handleScoreChange(roundIndex, courtIndex, 'team1', e.target.value)} 
-                                                            className="w-10 h-10 text-center text-lg font-black bg-background border-2 border-primary/20 p-0" 
-                                                            disabled={user?.role === 'guest'}
-                                                        />
-                                                        <span className='font-black text-primary'>:</span>
-                                                        <Input 
-                                                            type="text" 
-                                                            inputMode="numeric"
-                                                            value={court.match.score2 ?? ''} 
-                                                            onChange={e => handleScoreChange(roundIndex, courtIndex, 'team2', e.target.value)} 
-                                                            className="w-10 h-10 text-center text-lg font-black bg-background border-2 border-primary/20 p-0" 
-                                                            disabled={user?.role === 'guest'}
-                                                        />
-                                                    </div>
-                                                    <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
-                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full'>{court.match.team2.player1.name}</span>
-                                                        <span className='text-[10px] md:text-xs font-bold text-white uppercase w-full'>{court.match.team2.player2.name}</span>
-                                                    </div>
-                                                </div>
-                                            ) : <p>Error al generar partido</p>}
-                                        </CardContent>
-                                    </Card>
-                                ))}
-                                </div>
-                                {roundIndex === selectedMatch.rounds.length - 1 && !isGameFinished && (
-                                    <div className="flex justify-end mt-4">
-                                        <Button onClick={startNextRound} disabled={!allScoresEntered || user?.role === 'guest'} size="sm">
-                                            <Play className="mr-2 h-4 w-4" /> Iniciar Siguiente Ronda
-                                        </Button>
-                                    </div>
-                                )}
-                            </AccordionContent>
-                        </AccordionItem>
-                    ))}
-                </Accordion>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><BarChart className="h-5 w-5"/> Clasificación</CardTitle>
-                        <CardDescription>Puesto determinado por G, Diferencia de Puntos y Cancha Final.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12">#</TableHead>
-                                    <TableHead>{selectedMatch.modality === 'elevador' ? 'Jugador' : 'Pareja'}</TableHead>
-                                    <TableHead className="text-center">G</TableHead>
-                                    <TableHead className="text-center">Pts.</TableHead>
-                                    <TableHead className="text-center">Cancha Final</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {sortedRanking.map((p, index) => (
-                                    <TableRow key={index} className={cn(index < 3 && "bg-primary/5 font-bold")}>
-                                        <TableCell className="flex items-center gap-1">{index + 1} {getMedal(index)}</TableCell>
-                                        <TableCell className="max-w-[150px]">{p.name}</TableCell>
-                                        <TableCell className="text-center">{p.gamesWon}</TableCell>
-                                        <TableCell className="text-center font-semibold text-primary">{p.pointsScored}</TableCell>
-                                        <TableCell className="text-center">{p.finalCourt}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                         <div className="flex justify-end mt-6">
-                            <Button disabled={isSaving || !allCompetitionScoresEntered || user?.role !== 'admin'} onClick={saveEvent}>
-                                <Sparkles className="mr-2 h-4 w-4" /> {isSaving ? 'Guardando...' : 'Finalizar y Guardar'}
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+    if (view === 'match' && selectedMatch) return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <Button variant="outline" size="sm" onClick={() => setView('list')}><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
+                {user?.role === 'admin' && <AlertDialog><AlertDialogTrigger asChild><Button variant="destructive" size="sm"><Trash2 className="h-4 w-4"/></Button></AlertDialogTrigger><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Descartar?</AlertDialogTitle><AlertDialogDescription>Se perderá todo el progreso.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>No</AlertDialogCancel><AlertDialogAction onClick={handleDiscard}>Sí</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>}
             </div>
-        );
-    }
+            <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion} className="w-full">
+                {selectedMatch.rounds.map((round, ri) => (
+                    <AccordionItem value={`round-${round.roundNumber}`} key={ri}>
+                        <AccordionTrigger className={cn(round.isBonus && "gold-text")}>Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}</AccordionTrigger>
+                        <AccordionContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {round.courts.map((court, ci) => (
+                                <Card key={ci} className="overflow-hidden">
+                                    <div className="bg-muted/20 p-2 text-xs font-black text-blue-500 uppercase text-center border-b">Cancha {court.courtNumber}</div>
+                                    <CardContent className="pt-4">
+                                        {court.match ? (
+                                             <div className='flex items-center gap-2 p-2 bg-muted/30 rounded-lg'>
+                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
+                                                    <span className='text-[11px] font-bold text-white uppercase w-full text-right'>{court.match.team1.player1.name}</span>
+                                                    <span className='text-[11px] font-bold text-white uppercase w-full text-right'>{court.match.team1.player2.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Input type="text" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-12 h-10 text-center text-lg font-black p-0" disabled={user?.role === 'guest'} />
+                                                    <span className='font-black'>:</span>
+                                                    <Input type="text" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-12 h-10 text-center text-lg font-black p-0" disabled={user?.role === 'guest'} />
+                                                </div>
+                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
+                                                    <span className='text-[11px] font-bold text-white uppercase w-full'>{court.match.team2.player1.name}</span>
+                                                    <span className='text-[11px] font-bold text-white uppercase w-full'>{court.match.team2.player2.name}</span>
+                                                </div>
+                                            </div>
+                                        ) : <p className='text-center text-xs'>Error en partido</p>}
+                                    </CardContent>
+                                </Card>
+                            ))}
+                            </div>
+                            {ri === selectedMatch.rounds.length - 1 && selectedMatch.rounds.length < TOTAL_ROUNDS && (
+                                <div className="flex justify-end gap-2 mt-4">
+                                    {ri > 0 && <Button variant="outline" size="sm" onClick={handleGoBack}><ArrowLeft className="h-3 w-3 mr-1"/> Ronda Anterior</Button>}
+                                    <Button onClick={startNextRound} disabled={!isRoundComplete(round)} size="sm"><Play className="h-3 w-3 mr-1"/> Siguiente Ronda</Button>
+                                </div>
+                            )}
+                        </AccordionContent>
+                    </AccordionItem>
+                ))}
+            </Accordion>
+            <Card><CardHeader><CardTitle>Clasificación</CardTitle></CardHeader><CardContent>
+                <Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">Pts.</TableHead><TableHead className="text-center">Cancha</TableHead></TableRow></TableHeader>
+                <TableBody>{sortedRanking.map((p, i) => (
+                    <TableRow key={i} className={i<3 ? 'bg-primary/5 font-bold':''}><TableCell>{i+1}</TableCell><TableCell>{p.name}</TableCell><TableCell className="text-center">{p.gamesWon}</TableCell><TableCell className="text-center text-primary">{p.pointsScored}</TableCell><TableCell className="text-center">{p.finalCourt}</TableCell></TableRow>
+                ))}</TableBody></Table>
+                {user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> {isSaving ? 'Guardando...' : 'Finalizar y Guardar'}</Button></div>}
+            </CardContent></Card>
+        </div>
+    );
     
     return (
         <Card>
-            <CardHeader>
-                <div className='flex justify-between items-center'>
-                    <div>
-                        <CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle>
-                        <CardDescription>{category} Cat.</CardDescription>
-                    </div>
-                     {view === 'setup' && ongoingMatches.length > 0 && (
-                         <Button variant="outline" size="sm" onClick={() => setView('list')}>
-                            <ArrowLeft className="mr-2 h-4 w-4"/> Volver
-                        </Button>
-                    )}
-                </div>
-            </CardHeader>
+            <CardHeader><CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle><CardDescription>{category} Cat.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-                 {user?.role === 'guest' ? (
-                     <Alert><Info className="h-4 w-4" /><AlertTitle>Solo vista</AlertTitle><AlertDescription>Solo administradores pueden iniciar eventos.</AlertDescription></Alert>
-                 ) : (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Modalidad</Label>
-                                <Select value={modality} onValueChange={(v) => setModality(v as any)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="elevador"><User className="inline h-3 w-3 mr-2"/> Individual</SelectItem>
-                                        <SelectItem value="elevadorParejas"><Users className="inline h-3 w-3 mr-2"/> Parejas Fijas</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                {user?.role === 'guest' ? <Alert><Info className="h-4 w-4" /><AlertTitle>Solo lectura</AlertTitle><AlertDescription>Inicia sesión como Admin para crear eventos.</AlertDescription></Alert> : (
+                    <><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Modalidad</Label><Select value={modality} onValueChange={(v) => { setModality(v as any); resetSetupState(); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="elevador"><User className="inline h-3 w-3 mr-2"/> Individual</SelectItem><SelectItem value="elevadorParejas"><Users className="inline h-3 w-3 mr-2"/> Parejas</SelectItem></SelectContent></Select></div>
+                        <div className="space-y-2"><Label>Nombre</Label><Input placeholder="Mañana, Tarde..." value={eventName} onChange={(e) => setEventName(e.target.value)} /></div>
+                        <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+                        {modality === 'elevador' && <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem><SelectItem value="20">20 Jugadores</SelectItem></SelectContent></Select></div>}
+                    </div>
+                    {modality === 'elevador' ? (
+                        <div className="space-y-2"><Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> {p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
+                    ) : (
+                        <div className="space-y-4"><Label>Parejas ({fixedPairs.length})</Label>
+                            <div className="flex gap-2">
+                                <Select value={player1?.id || ''} onValueChange={id => setPlayer1(allPlayers.find(p => p.id === id) || null)}><SelectTrigger><SelectValue placeholder="J1" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+                                <Select value={player2?.id || ''} onValueChange={id => setPlayer2(allPlayers.find(p => p.id === id) || null)}><SelectTrigger><SelectValue placeholder="J2" /></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+                                <Button onClick={handleAddPair} size="icon"><PlusCircle className="h-4 w-4"/></Button>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Nombre del Evento</Label>
-                                <Input placeholder="Ej: Mañana, Tarde..." value={eventName} onChange={(e) => setEventName(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Fecha</Label>
-                                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-                            </div>
-                            {modality === 'elevador' && (
-                                <div className="space-y-2">
-                                    <Label>Cantidad de Jugadores</Label>
-                                    <Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="8">8 Jugadores (2 canchas)</SelectItem>
-                                            <SelectItem value="12">12 Jugadores (3 canchas)</SelectItem>
-                                            <SelectItem value="16">16 Jugadores (4 canchas)</SelectItem>
-                                            <SelectItem value="20">20 Jugadores (5 canchas)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
+                            <div className="border rounded-md p-2 space-y-1">{fixedPairs.map(p => (<div key={p.id} className="flex justify-between bg-muted p-2 rounded text-[10px] uppercase font-bold">{p.player1.name} & {p.player2.name}<Button variant="ghost" size="icon" onClick={() => handleRemovePair(p.id)} className="h-4 w-4 text-destructive"><Trash2 className="h-3 w-3"/></Button></div>))}</div>
                         </div>
-
-                        {modality === 'elevador' ? (
-                            <div className="space-y-2">
-                                <Label>Jugadores ({selectedPlayers.length} / {numberOfPlayers})</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Seleccionar Jugadores</Button></PopoverTrigger>
-                                    <PopoverContent className="w-[300px] p-0">
-                                        <Command><CommandInput placeholder="Buscar..." /><CommandList><CommandEmpty>Sin resultados.</CommandEmpty><CommandGroup>
-                                                {allPlayers.map(player => (
-                                                    <CommandItem key={player.id} onSelect={() => handlePlayerToggle(player)}>
-                                                        <Checkbox checked={selectedPlayers.some(p => p.id === player.id)} className="mr-2" /> {player.name}
-                                                    </CommandItem>
-                                                ))}
-                                        </CommandGroup></CommandList></Command>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <Label>Configurar Parejas ({fixedPairs.length})</Label>
-                                <div className="flex gap-2">
-                                    <Select value={player1?.id || ''} onValueChange={id => setPlayer1(allPlayers.find(p => p.id === id) || null)}>
-                                        <SelectTrigger><SelectValue placeholder="Jugador 1" /></SelectTrigger>
-                                        <SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <Select value={player2?.id || ''} onValueChange={id => setPlayer2(allPlayers.find(p => p.id === id) || null)}>
-                                        <SelectTrigger><SelectValue placeholder="Jugador 2" /></SelectTrigger>
-                                        <SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <Button onClick={handleAddPair} size="icon"><PlusCircle className="h-4 w-4"/></Button>
-                                </div>
-                                <div className="border rounded-md p-2 space-y-2">
-                                    {fixedPairs.map(p => (
-                                        <div key={p.id} className="flex justify-between items-center bg-muted p-2 rounded text-xs">
-                                            {p.player1.name} & {p.player2.name}
-                                            <Button variant="ghost" size="icon" onClick={() => handleRemovePair(p.id)} className="h-6 w-6 text-destructive"><Trash2 className="h-3 w-3"/></Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="flex justify-end">
-                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : (fixedPairs.length < 2 || fixedPairs.length % 2 !== 0)}>
-                                <Dices className="mr-2 h-4 w-4" /> Iniciar Elevador
-                            </Button>
-                        </div>
-                    </>
-                 )}
+                    )}
+                    <div className="flex justify-end"><Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : fixedPairs.length < 2}><Dices className="mr-2 h-4 w-4" /> Empezar</Button></div></>
+                )}
             </CardContent>
         </Card>
     );
