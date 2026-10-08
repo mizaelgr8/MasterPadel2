@@ -49,7 +49,6 @@ const RegistroElevador = () => {
                 const pCat = (p.category || '').toLowerCase().trim();
                 const targetCat = category.toLowerCase().trim();
                 if (targetCat === '4ta') {
-                    // Filtro extremadamente amplio para no perder ningún jugador de 4ta
                     return pCat.includes('4') || pCat === '' || !p.category || pCat === 'invitado';
                 }
                 return pCat === targetCat;
@@ -195,8 +194,9 @@ const RegistroElevador = () => {
             const newDoc = doc(collection(db, "dailyElevadorEvents"));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
             for (let i = 0; i < Math.min(results.length, 3); i++) {
-                const field = i === 0 ? 'medals.gold' : (i === 1 ? 'medals.silver' : 'medals.bronze');
-                batch.update(doc(db, 'players', results[i].playerId), { [field]: increment(1) });
+                const pRef = doc(db, 'players', results[i].playerId);
+                const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                batch.update(pRef, { [field]: increment(1) });
             }
             await batch.commit(); 
             await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
@@ -257,7 +257,7 @@ const RegistroElevador = () => {
                     <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem></SelectContent></Select></div>
                 </div>
-                <div className="space-y-2"><Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> {p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
+                <div className="space-y-2"><Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandEmpty>No se encontró ningún jugador.</CommandEmpty><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> {p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
                 <div className="flex justify-end"><Button onClick={startElevador} disabled={selectedPlayers.length !== parseInt(numberOfPlayers, 10)}><Dices className="mr-2 h-4 w-4" /> Empezar</Button></div></>
             )}</CardContent>
         </Card>

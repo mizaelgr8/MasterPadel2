@@ -13,8 +13,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Nueva clave de sesión v4 para forzar el deslogueo de todos los usuarios y realizar limpieza
-const SESSION_KEY = 'master_padel_auth_v4';
+// Nueva clave de sesión v5 para forzar la "limpia" de todos los usuarios
+const SESSION_KEY = 'master_padel_auth_v5';
 
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Mingo';
@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     try {
       // Limpieza de cualquier rastro de sesiones antiguas
-      const oldKeys = ['user', 'master_padel_auth_v2', 'master_padel_auth_v3'];
+      const oldKeys = ['user', 'master_padel_auth_v2', 'master_padel_auth_v3', 'master_padel_auth_v4'];
       oldKeys.forEach(k => localStorage.removeItem(k));
       
       const storedUser = localStorage.getItem(SESSION_KEY);

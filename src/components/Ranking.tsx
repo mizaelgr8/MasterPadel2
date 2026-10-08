@@ -38,7 +38,7 @@ const RankingGeneralContent = () => {
                 return list.filter(p => {
                     const pCat = (p.category || '').toLowerCase().trim();
                     if (target === '4ta') {
-                        return pCat === '4ta' || pCat === '' || !p.category || pCat.includes('4ta');
+                        return pCat === '4ta' || pCat === '' || !p.category || pCat.includes('4');
                     }
                     return pCat === target;
                 });
