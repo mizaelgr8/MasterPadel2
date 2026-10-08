@@ -49,7 +49,8 @@ const RegistroElevador = () => {
                 const pCat = (p.category || '').toLowerCase().trim();
                 const targetCat = category.toLowerCase().trim();
                 if (targetCat === '4ta') {
-                    return pCat === '4ta' || pCat === '' || !p.category || pCat.includes('4ta');
+                    // Filtro extremadamente amplio para no perder ningún jugador de 4ta
+                    return pCat.includes('4') || pCat === '' || !p.category || pCat === 'invitado';
                 }
                 return pCat === targetCat;
             });
@@ -133,9 +134,9 @@ const RegistroElevador = () => {
         const match = newRounds[ri].courts[ci].match;
         if (!match) return;
         if (value === '') { match.score1 = null; match.score2 = null; }
-        else if (!isNaN(score) && score >= 0 && score <= 6) {
-            if (team === 'team1') { match.score1 = score; match.score2 = 6 - score; }
-            else { match.score2 = score; match.score1 = 6 - score; }
+        else if (!isNaN(score) && score >= 0 && score <= 7) {
+            if (team === 'team1') { match.score1 = score; match.score2 = 7 - score; }
+            else { match.score2 = score; match.score1 = 7 - score; }
         }
         updateDoc(doc(db, "ongoingElevador", selectedMatch.id), { rounds: newRounds });
     };
@@ -148,7 +149,7 @@ const RegistroElevador = () => {
 
         const newStats = JSON.parse(JSON.stringify(playerStats));
         last.courts.forEach(c => {
-            const m = c.match!; const t1W = m.score1! > m.score2!;
+            const m = c.match!;
             [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
             [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
         });
@@ -223,18 +224,18 @@ const RegistroElevador = () => {
                                     <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
                                     <CardContent className="p-4">
                                         <div className='flex items-center gap-2'>
-                                            <div className='flex-1 flex flex-col items-end gap-1 min-h-[60px] justify-center overflow-hidden'>
-                                                <span className='text-[11px] font-black uppercase text-right leading-tight text-slate-200 truncate w-full'>{court.match?.team1.player1.name}</span>
-                                                <span className='text-[11px] font-black uppercase text-right leading-tight text-slate-200 truncate w-full'>{court.match?.team1.player2.name}</span>
+                                            <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
+                                                <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
+                                                <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
                                             </div>
                                             <div className="flex items-center gap-1 shrink-0 px-1">
-                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                 <span className='font-black text-primary'>-</span>
-                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                             </div>
-                                            <div className='flex-1 flex flex-col items-start gap-1 min-h-[60px] justify-center overflow-hidden'>
-                                                <span className='text-[11px] font-black uppercase leading-tight text-slate-200 truncate w-full'>{court.match?.team2.player1.name}</span>
-                                                <span className='text-[11px] font-black uppercase leading-tight text-slate-200 truncate w-full'>{court.match?.team2.player2.name}</span>
+                                            <div className='flex-1 flex flex-col items-start gap-1 min-h-[80px] justify-center overflow-hidden'>
+                                                <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player1.name}</span>
+                                                <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player2.name}</span>
                                             </div>
                                         </div>
                                     </CardContent>

@@ -13,8 +13,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Nueva clave de sesión para forzar el deslogueo de todos los usuarios
-const SESSION_KEY = 'master_padel_auth_v3';
+// Nueva clave de sesión v4 para forzar el deslogueo de todos los usuarios y realizar limpieza
+const SESSION_KEY = 'master_padel_auth_v4';
 
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Mingo';
@@ -31,8 +31,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      // Limpia versiones antiguas de sesiones si existen
-      if (localStorage.getItem('user')) localStorage.removeItem('user');
+      // Limpieza de cualquier rastro de sesiones antiguas
+      const oldKeys = ['user', 'master_padel_auth_v2', 'master_padel_auth_v3'];
+      oldKeys.forEach(k => localStorage.removeItem(k));
       
       const storedUser = localStorage.getItem(SESSION_KEY);
        if (storedUser) {
@@ -52,7 +53,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = (username: string, pass: string): User | null => {
     let authenticatedUser: User | null = null;
-    
     const u = username.trim();
     
     if (u.toLowerCase() === ADMIN_USERNAME.toLowerCase() && pass === ADMIN_PASSWORD) {
@@ -70,7 +70,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(authenticatedUser);
       return authenticatedUser;
     }
-    
     return null;
   };
 
