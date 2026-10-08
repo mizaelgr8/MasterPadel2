@@ -3,15 +3,15 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, onSnapshot, increment } from "firebase/firestore";
-import type { Player, DailyEvent, DailyElevadorEvent, Category } from "@/types";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, onSnapshot, setDoc } from "firebase/firestore";
+import type { Player, DailyEvent, DailyElevadorEvent, Category, CompletedTournament } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Trash2, UserPlus, RefreshCw, Loader2, SearchX } from "lucide-react";
+import { Pencil, Trash2, UserPlus, RefreshCw, Loader2, SearchX, LifeBuoy } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { useAuth } from "@/context/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -40,13 +40,14 @@ const ListaJugadores = () => {
     const unsubscribe = onSnapshot(playersCollection, (snapshot) => {
         const allPlayersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
         
-        // Filtro inteligente para 4ta
+        // Filtro inteligente para 4ta (más flexible para recuperar visualmente)
         const categoryPlayers = allPlayersList.filter(p => {
-            const pCat = p.category?.toLowerCase() || '';
-            if (category === '4ta') {
-                return !p.category || pCat === '4ta' || pCat.includes('4ta');
+            const pCat = (p.category || '').toLowerCase().trim();
+            const targetCat = category.toLowerCase().trim();
+            if (targetCat === '4ta') {
+                return !p.category || pCat.includes('4') || pCat === '' || pCat === 'invitado';
             }
-            return p.category === category;
+            return pCat === targetCat;
         });
         
         setPlayers(categoryPlayers.sort((a, b) => a.name.localeCompare(b.name)));
@@ -105,10 +106,16 @@ const ListaJugadores = () => {
     try {
         const batch = writeBatch(db);
         const playersSnapshot = await getDocs(collection(db, 'players'));
+        const existingPlayerIds = new Set(playersSnapshot.docs.map(d => d.id));
         const playerStats: Record<string, any> = {};
 
+        // 1. Inicializar con jugadores existentes
         playersSnapshot.forEach(playerDoc => {
+            const data = playerDoc.data();
             playerStats[playerDoc.id] = {
+                id: playerDoc.id,
+                name: data.name,
+                category: data.category || '4ta',
                 totalGames: 0, totalPoints: 0,
                 medals: { gold: 0, silver: 0, bronze: 0 },
                 achievements: { king: 0, shield: 0, sword: 0 },
@@ -116,40 +123,90 @@ const ListaJugadores = () => {
             };
         });
 
-        const dailyEventsSnapshot = await getDocs(collection(db, 'dailyEvents'));
-        dailyEventsSnapshot.forEach(doc => {
-            const data = doc.data() as DailyEvent;
-            data.results.sort((a,b) => b.points - a.points).forEach((res, i) => {
-                const s = playerStats[res.playerId];
-                if (s) {
-                    s.totalGames++; s.totalPoints += res.points;
-                    if (i === 0) s.medals.gold++; else if (i === 1) s.medals.silver++; else if (i === 2) s.medals.bronze++;
+        // 2. Escanear todo el historial para RECUPERAR jugadores borrados
+        const [dailySnap, elevadorSnap, tournamentsSnap] = await Promise.all([
+            getDocs(collection(db, 'dailyEvents')),
+            getDocs(collection(db, 'dailyElevadorEvents')),
+            getDocs(collection(db, 'tournaments'))
+        ]);
+
+        // Procesar Eventos Individuales
+        dailySnap.forEach(d => {
+            const data = d.data() as DailyEvent;
+            data.results.forEach((res, i) => {
+                if (!playerStats[res.playerId]) {
+                    playerStats[res.playerId] = {
+                        id: res.playerId, name: res.name, category: data.category || '4ta',
+                        totalGames: 0, totalPoints: 0, medals: { gold: 0, silver: 0, bronze: 0 },
+                        achievements: { king: 0, shield: 0, sword: 0 }, trophies: { first: 0, second: 0, third: 0 }
+                    };
                 }
+                const s = playerStats[res.playerId];
+                s.totalGames++; s.totalPoints += res.points;
+                if (i === 0) s.medals.gold++; else if (i === 1) s.medals.silver++; else if (i === 2) s.medals.bronze++;
             });
         });
 
-        const elevadorSnapshot = await getDocs(collection(db, 'dailyElevadorEvents'));
-        elevadorSnapshot.forEach(doc => {
-            const data = doc.data() as DailyElevadorEvent;
-            data.results.sort((a,b) => b.gamesWon - a.gamesWon || b.pointsDifference - a.pointsDifference).forEach((res, i) => {
-                const s = playerStats[res.playerId];
-                if (s) {
-                    s.totalGames++; s.totalPoints += res.pointsScored;
-                    if (i === 0) s.medals.gold++; else if (i === 1) s.medals.silver++; else if (i === 2) s.medals.bronze++;
+        // Procesar Elevadores
+        elevadorSnap.forEach(d => {
+            const data = d.data() as DailyElevadorEvent;
+            data.results.forEach((res, i) => {
+                if (!playerStats[res.playerId]) {
+                    playerStats[res.playerId] = {
+                        id: res.playerId, name: res.name, category: data.category || '4ta',
+                        totalGames: 0, totalPoints: 0, medals: { gold: 0, silver: 0, bronze: 0 },
+                        achievements: { king: 0, shield: 0, sword: 0 }, trophies: { first: 0, second: 0, third: 0 }
+                    };
                 }
+                const s = playerStats[res.playerId];
+                s.totalGames++; s.totalPoints += res.pointsScored;
+                if (i === 0) s.medals.gold++; else if (i === 1) s.medals.silver++; else if (i === 2) s.medals.bronze++;
             });
         });
 
+        // Procesar Torneos (Trofeos)
+        tournamentsSnap.forEach(d => {
+            const data = d.data() as CompletedTournament;
+            data.standings.forEach((p, i) => {
+                [p.player1, p.player2].forEach(player => {
+                    if (!playerStats[player.id]) {
+                        playerStats[player.id] = {
+                            id: player.id, name: player.name, category: data.category || '4ta',
+                            totalGames: 0, totalPoints: 0, medals: { gold: 0, silver: 0, bronze: 0 },
+                            achievements: { king: 0, shield: 0, sword: 0 }, trophies: { first: 0, second: 0, third: 0 }
+                        };
+                    }
+                    const s = playerStats[player.id];
+                    if (i === 0) s.trophies.first++; else if (i === 1) s.trophies.second++; else if (i === 2) s.trophies.third++;
+                });
+            });
+        });
+
+        // 3. Guardar cambios (actualizar existentes y RECREAR eliminados)
         for (const pid in playerStats) {
             const s = playerStats[pid];
-            batch.update(doc(db, 'players', pid), {
-                ...s,
+            const dataToSave = {
+                name: s.name,
+                category: s.category,
+                totalGames: s.totalGames,
+                totalPoints: s.totalPoints,
+                medals: s.medals,
+                achievements: s.achievements,
+                trophies: s.trophies,
                 efficiency: s.totalGames > 0 ? (s.totalPoints / (s.totalGames * 36)) * 100 : 0
-            });
+            };
+            
+            if (existingPlayerIds.has(pid)) {
+                batch.update(doc(db, 'players', pid), dataToSave);
+            } else {
+                batch.set(doc(db, 'players', pid), dataToSave);
+            }
         }
+
         await batch.commit();
-        toast({ title: "Éxito", description: "Estadísticas actualizadas." });
+        toast({ title: "Recuperación Exitosa", description: "Se han restaurado los jugadores y estadísticas desde el historial." });
     } catch (e) {
+        console.error("Error en recuperación:", e);
         toast({ title: "Error", variant: "destructive" });
     } finally {
         setIsRecalculating(false);
@@ -158,35 +215,40 @@ const ListaJugadores = () => {
 
   return (
     <>
-        <div className="flex justify-between items-center mb-6">
-            <p className="text-sm text-muted-foreground">Total jugadores en {category}: <span className="font-bold text-foreground">{players.length}</span></p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div>
+                <p className="text-sm text-muted-foreground">Total jugadores en {category}: <span className="font-bold text-foreground">{players.length}</span></p>
+            </div>
             { user?.role === 'admin' &&
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full md:w-auto">
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" disabled={isRecalculating}>
-                                <RefreshCw className={isRecalculating ? 'animate-spin' : ''} />
+                            <Button variant="outline" size="sm" className="flex-1 md:flex-none" disabled={isRecalculating}>
+                                <LifeBuoy className={cn("mr-2 h-4 w-4 text-primary", isRecalculating && 'animate-spin')} />
+                                Recuperar y Recalcular
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader>
-                                <AlertDialogTitle>¿Recalcular estadísticas?</AlertDialogTitle>
-                                <AlertDialogDescription>Se reconstruirán los perfiles basados en el historial.</AlertDialogDescription>
+                                <AlertDialogTitle>¿Deseas reconstruir la base de jugadores?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Este proceso buscará en todo el historial a jugadores que hayan sido eliminados y los volverá a dar de alta con sus puntos y trofeos originales.
+                                </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>No</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleRecalculateStats}>Sí, recalcular</AlertDialogAction>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleRecalculateStats}>Confirmar Recuperación</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
-                    <Button onClick={() => { setEditingPlayer(null); reset({name: "", category: category}); setIsDialogOpen(true); }} size="sm">
+                    <Button onClick={() => { setEditingPlayer(null); reset({name: "", category: category}); setIsDialogOpen(true); }} size="sm" className="flex-1 md:flex-none">
                         <UserPlus className="mr-2 h-4 w-4" /> Añadir
                     </Button>
                 </div>
             }
         </div>
 
-        <div className="rounded-md border bg-card">
+        <div className="rounded-md border bg-card overflow-hidden">
             <Table>
                 <TableHeader>
                     <TableRow>
@@ -233,7 +295,7 @@ const ListaJugadores = () => {
                         <TableRow>
                             <TableCell colSpan={3} className="text-center py-12 text-muted-foreground">
                                 <SearchX className="mx-auto h-12 w-12 mb-2 opacity-20"/>
-                                <p>No se encontraron jugadores en la categoría {category}.</p>
+                                <p>No hay jugadores en {category}. Usa el botón de "Recuperar" si crees que faltan nombres.</p>
                             </TableCell>
                         </TableRow>
                     )}

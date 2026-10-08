@@ -183,18 +183,18 @@ const ProyectorOngoingMatch = () => {
                                         <div key={mi} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
                                             <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
                                             <div className='flex items-center gap-3'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0'>
-                                                    <span className='text-xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player1.name}</span>
-                                                    <span className='text-xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0 min-h-[100px]'>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player1.name}</span>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0 px-4">
                                                     <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score1 ?? '-'}</div>
                                                     <span className="text-primary font-black text-2xl">VS</span>
                                                     <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score2 ?? '-'}</div>
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0'>
-                                                    <span className='text-xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player1.name}</span>
-                                                    <span className='text-xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0 min-h-[100px]'>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player1.name}</span>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -211,18 +211,18 @@ const ProyectorOngoingMatch = () => {
                                         <div key={ci} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl'>
                                             <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
                                             <div className='flex items-center gap-4'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0'>
-                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player1.name}</span>
-                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0 min-h-[100px]'>
+                                                    <span className='text-3xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player1.name}</span>
+                                                    <span className='text-3xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0 px-4">
                                                     <div className="w-20 h-20 flex items-center justify-center text-6xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score1 ?? '-'}</div>
                                                     <span className="text-primary font-black text-2xl">VS</span>
                                                     <div className="w-20 h-20 flex items-center justify-center text-6xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score2 ?? '-'}</div>
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0'>
-                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player1.name}</span>
-                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0 min-h-[100px]'>
+                                                    <span className='text-3xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player1.name}</span>
+                                                    <span className='text-3xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -259,7 +259,7 @@ export default function ProyectorPage() {
             const finalRankings = cats.map(cat => {
                 const categoryPlayers = allPlayers.filter(p => {
                     const pCat = p.category?.toLowerCase() || '';
-                    if (cat === '4ta') return !p.category || pCat === '4ta' || pCat.includes('4ta');
+                    if (cat === '4ta') return !p.category || pCat.includes('4') || pCat === 'invitado';
                     return p.category === cat;
                 });
                 const sorted = categoryPlayers.sort((a,b) => (b.totalPoints || 0) - (a.totalPoints || 0));

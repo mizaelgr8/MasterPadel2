@@ -193,11 +193,14 @@ const RegistroElevador = () => {
             }));
             const newDoc = doc(collection(db, "dailyElevadorEvents"));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
+            
+            // Asignación de medallas (Corregido)
             for (let i = 0; i < Math.min(results.length, 3); i++) {
                 const pRef = doc(db, 'players', results[i].playerId);
                 const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
                 batch.update(pRef, { [field]: increment(1) });
             }
+            
             await batch.commit(); 
             await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
             setSelectedMatch(null); setView('list');
@@ -208,58 +211,139 @@ const RegistroElevador = () => {
     if (view === 'loading') return <Card><CardContent className="flex justify-center p-8"><Loader2 className="animate-spin"/></CardContent></Card>;
 
     if (view === 'list') return (
-        <Card><CardHeader><div className='flex justify-between items-center'><CardTitle><span className="text-yellow-400">Elevador en Curso</span></CardTitle>{user?.role === 'admin' && <Button onClick={() => setView('setup')} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nuevo</Button>}</div></CardHeader><CardContent className="space-y-2">{ongoingMatches.length > 0 ? ongoingMatches.map(m => (<div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors flex justify-between items-center"><div><p className="font-bold">{m.eventName}</p><p className="text-xs text-muted-foreground">{m.date}</p></div><BarChart className="h-4 w-4 opacity-50" /></div>)) : <div className="text-center py-8 text-muted-foreground"><Gamepad2 className="mx-auto h-12 w-12 mb-2" /><p>No hay eventos activos para esta categoría.</p></div>}</CardContent></Card>
+        <Card>
+            <CardHeader>
+                <div className='flex justify-between items-center'>
+                    <CardTitle><span className="text-yellow-400">Elevador en Curso</span></CardTitle>
+                    {user?.role === 'admin' && <Button onClick={() => setView('setup')} size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Nuevo</Button>}
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+                {ongoingMatches.length > 0 ? ongoingMatches.map(m => (
+                    <div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors flex justify-between items-center">
+                        <div><p className="font-bold">{m.eventName}</p><p className="text-xs text-muted-foreground">{m.date}</p></div>
+                        <BarChart className="h-4 w-4 opacity-50" />
+                    </div>
+                )) : <div className="text-center py-8 text-muted-foreground"><Gamepad2 className="mx-auto h-12 w-12 mb-2" /><p>No hay eventos activos para esta categoría.</p></div>}
+            </CardContent>
+        </Card>
     );
 
     if (view === 'match' && selectedMatch) return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center"><Button variant="outline" size="sm" onClick={() => setView('list')}><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>{user?.role === 'admin' && <Button variant="destructive" size="sm" onClick={() => deleteDoc(doc(db!, "ongoingElevador", selectedMatch.id))}><Trash2 className="h-4 w-4"/></Button>}</div>
+            <div className="flex justify-between items-center">
+                <Button variant="outline" size="sm" onClick={() => setView('list')}><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
+                {user?.role === 'admin' && <Button variant="destructive" size="sm" onClick={() => deleteDoc(doc(db!, "ongoingElevador", selectedMatch.id))}><Trash2 className="h-4 w-4"/></Button>}
+            </div>
             <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion} className="w-full">
                 {selectedMatch.rounds.map((round, ri) => (
                     <AccordionItem value={`round-${round.roundNumber}`} key={ri}>
                         <AccordionTrigger className={cn(round.isBonus && "gold-text")}>Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}</AccordionTrigger>
-                        <AccordionContent><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {round.courts.map((court, ci) => (
-                                <Card key={ci} className="bg-slate-900/40 border-slate-800 overflow-hidden">
-                                    <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
-                                    <CardContent className="p-4">
-                                        <div className='flex items-center gap-2'>
-                                            <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
-                                                <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
-                                                <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
+                        <AccordionContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {round.courts.map((court, ci) => (
+                                    <Card key={ci} className="bg-slate-900/40 border-slate-800 overflow-hidden">
+                                        <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
+                                        <CardContent className="p-4">
+                                            <div className='flex items-center gap-2'>
+                                                <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
+                                                    <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
+                                                    <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 shrink-0 px-1">
+                                                    <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                    <span className='font-black text-primary'>-</span>
+                                                    <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                </div>
+                                                <div className='flex-1 flex flex-col items-start gap-1 min-h-[80px] justify-center overflow-hidden'>
+                                                    <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player1.name}</span>
+                                                    <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player2.name}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-1 shrink-0 px-1">
-                                                <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
-                                                <span className='font-black text-primary'>-</span>
-                                                <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
-                                            </div>
-                                            <div className='flex-1 flex flex-col items-start gap-1 min-h-[80px] justify-center overflow-hidden'>
-                                                <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player1.name}</span>
-                                                <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player2.name}</span>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>{ri === selectedMatch.rounds.length - 1 && selectedMatch.rounds.length < TOTAL_ROUNDS && <div className="flex justify-end mt-4"><Button onClick={startNextRound} size="sm"><Play className="h-3 w-3 mr-1"/> Siguiente Ronda</Button></div>}</AccordionContent>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                            {ri === selectedMatch.rounds.length - 1 && selectedMatch.rounds.length < TOTAL_ROUNDS && (
+                                <div className="flex justify-end mt-4">
+                                    <Button onClick={startNextRound} size="sm"><Play className="h-3 w-3 mr-1"/> Siguiente Ronda</Button>
+                                </div>
+                            )}
+                        </AccordionContent>
                     </AccordionItem>
                 ))}
             </Accordion>
-            <Card><CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader><TableBody>{sortedRanking.map((p, i) => (<TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}><TableCell>{i+1}</TableCell><TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell><TableCell className="text-center text-xs">{p.finalCourt}</TableCell><TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell></TableRow>))}</TableBody></Table>{user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> Finalizar y Guardar</Button></div>}</CardContent></Card>
+            <Card>
+                <CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                            {sortedRanking.map((p, i) => (
+                                <TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}>
+                                    <TableCell>{i+1}</TableCell>
+                                    <TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell>
+                                    <TableCell className="text-center text-xs">{p.finalCourt}</TableCell>
+                                    <TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                    {user?.role === 'admin' && (
+                        <div className="flex justify-end mt-6">
+                            <Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> Finalizar y Guardar</Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 
     return (
-        <Card><CardHeader><CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle><CardDescription>{category} Cat.</CardDescription></CardHeader>
-        <CardContent className="space-y-6">
-            {user?.role === 'guest' ? <Alert><Info className="h-4 w-4" /><AlertTitle>Solo lectura</AlertTitle><AlertDescription>Inicia sesión como Admin para crear eventos.</AlertDescription></Alert> : (
-                <><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-                    <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem></SelectContent></Select></div>
-                </div>
-                <div className="space-y-2"><Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandEmpty>No se encontró ningún jugador.</CommandEmpty><CommandGroup>{allPlayers.map(p => (<CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}><Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> {p.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover></div>
-                <div className="flex justify-end"><Button onClick={startElevador} disabled={selectedPlayers.length !== parseInt(numberOfPlayers, 10)}><Dices className="mr-2 h-4 w-4" /> Empezar</Button></div></>
-            )}</CardContent>
+        <Card>
+            <CardHeader>
+                <CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle>
+                <CardDescription>{category} Cat.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {user?.role === 'guest' ? (
+                    <Alert><Info className="h-4 w-4" /><AlertTitle>Solo lectura</AlertTitle><AlertDescription>Inicia sesión como Admin para crear eventos.</AlertDescription></Alert>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+                            <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem></SelectContent></Select></div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label>
+                            <Popover>
+                                <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger>
+                                <PopoverContent className="w-[300px] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar..." />
+                                        <CommandList>
+                                            <CommandEmpty>No se encontró ningún jugador.</CommandEmpty>
+                                            <CommandGroup>
+                                                {allPlayers.map(p => (
+                                                    <CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}>
+                                                        <Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> 
+                                                        {p.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="flex justify-end">
+                            <Button onClick={startElevador} disabled={selectedPlayers.length !== parseInt(numberOfPlayers, 10)}>
+                                <Dices className="mr-2 h-4 w-4" /> Empezar
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </CardContent>
         </Card>
     );
 };
