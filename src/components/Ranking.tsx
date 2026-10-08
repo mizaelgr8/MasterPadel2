@@ -243,7 +243,6 @@ const RankingGeneralContent = () => {
             });
         });
         
-        // Initial call
         calculateRankings();
         
         return () => unsubscribers.forEach(unsub => unsub());
@@ -259,7 +258,7 @@ const RankingGeneralContent = () => {
             medals: p.medals,
             totalGames: p.totalGames,
             totalPoints: p.totalPoints,
-            efficiency: 0, // Not used in podium pair display
+            efficiency: 0,
             category: category,
             trophies: p.trophies,
         }));
@@ -308,7 +307,7 @@ const RankingGeneralContent = () => {
                         individualPlayers.map((player, index) => (
                           <TableRow key={player.id}>
                             <TableCell className="font-bold">{index + 1}</TableCell>
-                            <TableCell className="font-medium">{player.name}</TableCell>
+                            <TableCell className="font-medium uppercase">{player.name}</TableCell>
                             <TableCell className="text-center">{player.totalGames || 0}</TableCell>
                             <TableCell className="text-center">{player.totalPoints || 0}</TableCell>
                             <TableCell className="text-center text-primary">
@@ -358,7 +357,7 @@ const RankingGeneralContent = () => {
                                   pairPlayers.map((pair, index) => (
                                     <TableRow key={pair.pairId}>
                                       <TableCell className="font-bold">{index + 1}</TableCell>
-                                      <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
+                                      <TableCell className="uppercase">{pair.player1.name} & {pair.player2.name}</TableCell>
                                       <TableCell className="text-center">
                                         {pair.totalGames}
                                       </TableCell>
@@ -453,21 +452,13 @@ const RankingMensualContent = () => {
 
       const getPlayersForCategory = async (cat: Category): Promise<Player[]> => {
         const playersColl = collection(db, "players");
-        let players: Player[] = [];
+        const snapshot = await getDocs(playersColl);
+        const allPlayers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
         if (cat === '4ta') {
-            const q1 = query(playersColl, where("category", "==", "4ta"));
-            const q2 = query(playersColl, where("category", "==", null));
-            const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-            const playerMap = new Map<string, Player>();
-            snap1.docs.forEach(doc => playerMap.set(doc.id, { id: doc.id, ...doc.data() } as Player));
-            snap2.docs.forEach(doc => playerMap.set(doc.id, { id: doc.id, ...doc.data() } as Player));
-            players = Array.from(playerMap.values());
+            return allPlayers.filter(p => p.category === '4ta' || !p.category);
         } else {
-            const q = query(playersColl, where("category", "==", cat));
-            const snapshot = await getDocs(q);
-            players = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
+            return allPlayers.filter(p => p.category === cat);
         }
-        return players;
       };
       
       const processRankings = async () => {
@@ -531,7 +522,6 @@ const RankingMensualContent = () => {
                 });
             });
             
-            // Medals from 6 Loco Parejas for Monthly Ranking
             monthlyPairEvents.filter(e => e.modality === '6locoParejas').forEach(event => {
                 const sortedResults = [...event.results].sort((a, b) => b.points - a.points);
                 sortedResults.forEach((result, index) => {
@@ -556,9 +546,9 @@ const RankingMensualContent = () => {
               })
               .sort((a, b) => {
                 if (b.rankScore !== a.rankScore) return b.rankScore - a.rankScore;
-                if (b.g !== a.g) return b.g - a.g; // Ganados
-                if (b.e !== a.e) return b.e - a.e; // Empatados
-                return a.p - b.p; // Menos perdidos
+                if (b.g !== a.g) return b.g - a.g;
+                if (b.e !== a.e) return b.e - a.e;
+                return a.p - b.p;
               });
             setIndividualRanking(rankedPlayers);
 
@@ -629,12 +619,6 @@ const RankingMensualContent = () => {
         let docId = `${selectedMonth}-${idSuffix}`;
         let docRef = doc(db, collectionName, docId);
         let docSnap = await getDoc(docRef);
-
-        if (!docSnap.exists() && idSuffix === '4ta') {
-            docId = selectedMonth;
-            docRef = doc(db, collectionName, docId);
-            docSnap = await getDoc(docRef);
-        }
         return docSnap.exists();
     }
 
@@ -681,7 +665,7 @@ const RankingMensualContent = () => {
               batch.update(playerRef, { achievements: newAchievements });
           }
         }
-      } else { // parejaFija
+      } else {
         const monthRankingDocRef = doc(db, 'monthlyPairRankings', monthId);
         const rankingToSave: MonthlyPairRanking = { id: monthId, category, pairs: pairRanking };
         batch.set(monthRankingDocRef, rankingToSave);
@@ -819,7 +803,7 @@ const RankingMensualContent = () => {
                       individualRanking.map((player, index) => (
                         <TableRow key={player.playerId}>
                           <TableCell className="font-bold">{index + 1}</TableCell>
-                          <TableCell>{player.name}</TableCell>
+                          <TableCell className="uppercase">{player.name}</TableCell>
                           <TableCell className="text-center font-semibold text-primary">{player.rankScore.toFixed(2)}</TableCell>
                           <TableCell className="text-center">{player.totalGames}</TableCell>
                           <TableCell className="text-center">{`${player.g}/${player.e}/${player.p}`}</TableCell>
@@ -867,7 +851,7 @@ const RankingMensualContent = () => {
                           pairRanking.map((pair, index) => (
                             <TableRow key={pair.pairId}>
                               <TableCell className="font-bold">{index + 1}</TableCell>
-                              <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
+                              <TableCell className="uppercase">{pair.player1.name} & {pair.player2.name}</TableCell>
                               <TableCell className="text-center font-semibold text-primary">{pair.rankScore.toFixed(2)}</TableCell>
                               <TableCell className="text-center">{pair.totalGames}</TableCell>
                               <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>

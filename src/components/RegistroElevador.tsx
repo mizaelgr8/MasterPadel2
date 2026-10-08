@@ -1,7 +1,7 @@
 
 "use client";
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { collection, doc, updateDoc, deleteDoc, query, where, addDoc, onSnapshot, writeBatch, increment } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc, query, where, addDoc, onSnapshot, writeBatch, increment, getDocs } from 'firebase/firestore';
 import type { Player, ElevadorPlayer, ElevadorCourt, ElevadorRound, ElevadorPlayerStats, ElevadorMatch, OngoingElevador, DailyElevadorResult, Category, Pair, DailyPairResult } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -93,10 +93,19 @@ const RegistroElevador = () => {
 
     useEffect(() => {
         if (!db) return;
-        const q = query(collection(db, "ongoingElevador"), where("category", "==", category));
+        setLoading(true);
+        const q = query(collection(db, "ongoingElevador"));
         const unsubOngoing = onSnapshot(q, (querySnapshot) => {
             const matches = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as OngoingElevador));
-            setOngoingMatches(matches);
+            const filtered = matches.filter(m => {
+                if (category === '4ta') return m.category === '4ta' || !m.category;
+                return m.category === category;
+            });
+            setOngoingMatches(filtered);
+            setLoading(false);
+        }, (err) => {
+            console.error(err);
+            setLoading(false);
         });
         return () => unsubOngoing();
     }, [db, category]);
@@ -141,12 +150,13 @@ const RegistroElevador = () => {
         } else toast({ title: "Error", description: "Selecciona dos jugadores diferentes.", variant: "destructive" });
     };
 
-    const getPairId = (p1Id: string, p2Id: string) => [p1Id, p2Id].sort().join('-');
-
-    const createMatchForCourt = (players: ElevadorPlayer[], previousPairs: Set<string>): ElevadorMatch | null => {
+    const createMatchForCourt = (players: ElevadorPlayer[]): ElevadorMatch | null => {
         if (players.length !== 4) return null;
         const shuffled = [...players].sort(() => 0.5 - Math.random());
-        const combo = { team1: { player1: shuffled[0], player2: shuffled[1] }, team2: { player1: shuffled[2], player2: shuffled[3] } };
+        const combo = { 
+          team1: { player1: shuffled[0], player2: shuffled[1] }, 
+          team2: { player1: shuffled[2], player2: shuffled[3] } 
+        };
         return { ...combo, score1: null, score2: null };
     };
 
@@ -167,7 +177,7 @@ const RegistroElevador = () => {
             const numCourts = sorted.length / 4;
             for (let i = 0; i < numCourts; i++) {
                 const cp = sorted.slice(i * 4, (i * 4) + 4).map(p => ({ ...p, court: i + 1 }));
-                initialCourts.push({ courtNumber: i + 1, players: cp, match: createMatchForCourt(cp, new Set()) });
+                initialCourts.push({ courtNumber: i + 1, players: cp, match: createMatchForCourt(cp) });
             }
             selectedPlayers.forEach(p => {
                 const c = initialCourts.find(ct => ct.players.some(cp => cp.id === p.id));
@@ -178,14 +188,25 @@ const RegistroElevador = () => {
             for (let i = 0; i < numCourts; i++) {
                 const p1 = fixedPairs[i * 2]; const p2 = fixedPairs[i * 2 + 1];
                 const cp = [{ ...p1.player1, court: i + 1 }, { ...p1.player2, court: i + 1 }, { ...p2.player1, court: i + 1 }, { ...p2.player2, court: i + 1 }];
-                initialCourts.push({ courtNumber: i + 1, players: cp, match: { team1: { player1: cp[0], player2: cp[1] }, team2: { player1: cp[2], player2: cp[3] }, score1: null, score2: null } });
+                initialCourts.push({ courtNumber: i + 1, players: cp, match: { team1: { player1: cp[0] as any, player2: cp[1] as any }, team2: { player1: cp[2] as any, player2: cp[3] as any }, score1: null, score2: null } });
             }
             fixedPairs.forEach(pair => [pair.player1, pair.player2].forEach(p => {
                 const c = initialCourts.find(ct => ct.players.some(cp => cp.id === p.id));
                 initialStats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [c?.courtNumber || 0], finalCourt: c?.courtNumber || 0 };
             }));
         }
-        const newMatchData: Omit<OngoingElevador, 'id'> = { eventName: eventName || "Elevador", modality, date, numberOfPlayers: modality === 'elevador' ? numberOfPlayers : (fixedPairs.length * 2).toString(), selectedPlayers: modality === 'elevador' ? selectedPlayers : [], fixedPairs: modality === 'elevadorParejas' ? fixedPairs : [], rounds: [{ roundNumber: 1, courts: initialCourts }], stage: 'playing', playerStats: initialStats, category };
+        const newMatchData: Omit<OngoingElevador, 'id'> = { 
+            eventName: eventName || "Elevador", 
+            modality, 
+            date, 
+            numberOfPlayers: modality === 'elevador' ? numberOfPlayers : (fixedPairs.length * 2).toString(), 
+            selectedPlayers: modality === 'elevador' ? selectedPlayers : [], 
+            fixedPairs: modality === 'elevadorParejas' ? fixedPairs : [], 
+            rounds: [{ roundNumber: 1, courts: initialCourts }], 
+            stage: 'playing', 
+            playerStats: initialStats, 
+            category 
+        };
         try {
             const docRef = await addDoc(collection(db, "ongoingElevador"), newMatchData);
             setSelectedMatch({ ...newMatchData, id: docRef.id }); setView('match'); setOpenAccordion("round-1"); resetSetupState();
@@ -199,8 +220,13 @@ const RegistroElevador = () => {
         const match = newRounds[ri].courts[ci].match;
         if (!match) return;
         const finalScore = isNaN(score) ? null : score;
-        if (team === 'team1') { match.score1 = finalScore; if(finalScore !== null) match.score2 = 6 - finalScore; else match.score2 = null; }
-        else { match.score2 = finalScore; if(finalScore !== null) match.score1 = 6 - finalScore; else match.score1 = null; }
+        if (team === 'team1') { 
+            match.score1 = finalScore; 
+            if(finalScore !== null) match.score2 = 6 - finalScore; else match.score2 = null; 
+        } else { 
+            match.score2 = finalScore; 
+            if(finalScore !== null) match.score1 = 6 - finalScore; else match.score1 = null; 
+        }
         updateDoc(doc(db!, "ongoingElevador", selectedMatch.id), { rounds: newRounds });
     };
     
@@ -208,12 +234,22 @@ const RegistroElevador = () => {
         if (!selectedMatch) return;
         const { rounds, playerStats, modality, numberOfPlayers: numPlayersStr } = selectedMatch;
         const lastRound = rounds[rounds.length - 1];
-        if (!lastRound.courts.every(c => c.match && c.match.score1 !== null)) { toast({ title: "Incompleto" }); return; }
+        if (!lastRound.courts.every(c => c.match && c.match.score1 !== null)) { toast({ title: "Incompleto", description: "Anota todos los marcadores." }); return; }
         const newStats = JSON.parse(JSON.stringify(playerStats));
         lastRound.courts.forEach(court => {
             const m = court.match!; const t1Won = m.score1! > m.score2!;
-            [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].gamesWon += t1Won ? 1 : 0; newStats[p.id].gamesLost += t1Won ? 0 : 1; newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
-            [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].gamesWon += t1Won ? 0 : 1; newStats[p.id].gamesLost += t1Won ? 1 : 0; newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
+            [m.team1.player1, m.team1.player2].forEach(p => { 
+                newStats[p.id].gamesWon += t1Won ? 1 : 0; 
+                newStats[p.id].gamesLost += t1Won ? 0 : 1; 
+                newStats[p.id].pointsScored += m.score1!; 
+                newStats[p.id].pointsReceived += m.score2!; 
+            });
+            [m.team2.player1, m.team2.player2].forEach(p => { 
+                newStats[p.id].gamesWon += t1Won ? 0 : 1; 
+                newStats[p.id].gamesLost += t1Won ? 1 : 0; 
+                newStats[p.id].pointsScored += m.score2!; 
+                newStats[p.id].pointsReceived += m.score1!; 
+            });
         });
         const numCourts = parseInt(numPlayersStr, 10) / 4;
         const nextCourtPlayers: Record<number, ElevadorPlayer[]> = {};
@@ -230,11 +266,12 @@ const RegistroElevador = () => {
         for (let i = 1; i <= numCourts; i++) {
             const cp = nextCourtPlayers[i].map(p => ({...p, court: i}));
             cp.forEach(p => { if(newStats[p.id]) newStats[p.id].finalCourt = i; });
-            const match = modality === 'elevador' ? createMatchForCourt(cp, new Set()) : { team1: { player1: cp[0], player2: cp[1] }, team2: { player1: cp[2], player2: cp[3] }, score1: null, score2: null };
-            newCourts.push({ courtNumber: i, players: cp, match });
+            const match = modality === 'elevador' ? createMatchForCourt(cp as any) : { team1: { player1: cp[0], player2: cp[1] }, team2: { player1: cp[2], player2: cp[3] }, score1: null, score2: null };
+            newCourts.push({ courtNumber: i, players: cp as any, match: match as any });
         }
-        const newRound = { roundNumber: lastRound.roundNumber + 1, courts: newCourts, isBonus: (lastRound.roundNumber + 1) === TOTAL_ROUNDS };
-        setOpenAccordion(`round-${newRound.roundNumber}`);
+        const nextRoundNum = lastRound.roundNumber + 1;
+        const newRound = { roundNumber: nextRoundNum, courts: newCourts, isBonus: nextRoundNum === TOTAL_ROUNDS };
+        setOpenAccordion(`round-${nextRoundNum}`);
         updateDoc(doc(db!, "ongoingElevador", selectedMatch.id), { rounds: [...rounds, newRound], playerStats: newStats });
     };
 
@@ -242,7 +279,10 @@ const RegistroElevador = () => {
         if (!selectedMatch) return [];
         const stats: Record<string, any> = {};
         const active = selectedMatch.modality === 'elevador' ? selectedMatch.selectedPlayers : selectedMatch.fixedPairs.flatMap(p => [p.player1, p.player2]);
-        active.forEach(p => { const ps = selectedMatch.playerStats[p.id] || { gamesWon:0, pointsScored:0, pointsReceived:0, finalCourt:0 }; stats[p.id] = { ...ps, playerId: p.id, name: p.name, player1: p, player2: p }; });
+        active.forEach(p => { 
+            const ps = selectedMatch.playerStats[p.id] || { gamesWon:0, pointsScored:0, pointsReceived:0, finalCourt:0 }; 
+            stats[p.id] = { ...ps, playerId: p.id, name: p.name, player1: p, player2: p }; 
+        });
         if (selectedMatch.modality === 'elevador') return Object.values(stats).sort((a,b) => b.gamesWon - a.gamesWon || (b.pointsScored-b.pointsReceived) - (a.pointsScored-a.pointsReceived) || a.finalCourt - b.finalCourt);
         const res: any[] = []; selectedMatch.fixedPairs.forEach(p => res.push({ ...stats[p.player1.id], pairId: p.id, name: p.player1.name + ' & ' + p.player2.name, player1: p.player1, player2: p.player2 }));
         return res.sort((a,b) => b.gamesWon - a.gamesWon || (b.pointsScored-b.pointsReceived) - (a.pointsScored-a.pointsReceived) || a.finalCourt - b.finalCourt);
@@ -252,20 +292,28 @@ const RegistroElevador = () => {
         if (!db || !selectedMatch) return;
         setIsSaving(true);
         try {
-            const batch = writeBatch(db); const medalFields = ['medals.gold', 'medals.silver', 'medals.bronze'] as const;
+            const batch = writeBatch(db); 
             if (selectedMatch.modality === 'elevador') {
                 const results: DailyElevadorResult[] = sortedRanking.map(p => ({ playerId: p.playerId, name: p.name, gamesWon: p.gamesWon, gamesLost: p.gamesLost, pointsScored: p.pointsScored, pointsReceived: p.pointsReceived, pointsDifference: p.pointsScored - p.pointsReceived, finalCourt: p.finalCourt }));
                 const newDoc = doc(collection(db, "dailyElevadorEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
-                for (let i = 0; i < Math.min(results.length, 3); i++) batch.update(doc(db, 'players', results[i].playerId), { [medalFields[i]]: increment(1) });
+                for (let i = 0; i < Math.min(results.length, 3); i++) {
+                  const pRef = doc(db, 'players', results[i].playerId);
+                  const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                  batch.update(pRef, { [field]: increment(1) });
+                }
             } else {
                 const results: DailyPairResult[] = sortedRanking.map(p => ({ pairId: p.pairId, player1: p.player1, player2: p.player2, points: p.pointsScored, g: p.gamesWon, p: p.gamesLost, e: 0 }));
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
-                for (let i = 0; i < Math.min(results.length, 3); i++) [results[i].player1.id, results[i].player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [medalFields[i]]: increment(1) }));
+                for (let i = 0; i < Math.min(results.length, 3); i++) {
+                  const res = results[i];
+                  const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                  [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
+                }
             }
             await batch.commit(); await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
-            setSelectedMatch(null); setView('list'); toast({ title: "Guardado" });
+            setSelectedMatch(null); setView('list'); toast({ title: "Evento Guardado" });
         } catch (e) { toast({ title: "Error", variant: "destructive" }); } finally { setIsSaving(false); }
     };
 
@@ -299,18 +347,18 @@ const RegistroElevador = () => {
                                     <CardContent className="p-3">
                                         {court.match ? (
                                              <div className='flex items-center gap-2'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
-                                                    <span className='text-[10px] font-black uppercase text-right leading-tight w-full truncate'>{court.match.team1.player1.name}</span>
-                                                    <span className='text-[10px] font-black uppercase text-right leading-tight w-full truncate'>{court.match.team1.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
+                                                    <span className='text-[10px] font-black uppercase text-right leading-tight w-full'>{court.match.team1.player1.name}</span>
+                                                    <span className='text-[10px] font-black uppercase text-right leading-tight w-full'>{court.match.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0 px-1">
                                                     <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800" disabled={user?.role === 'guest'} />
                                                     <span className='font-black text-primary'>:</span>
                                                     <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800" disabled={user?.role === 'guest'} />
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
-                                                    <span className='text-[10px] font-black uppercase leading-tight w-full truncate'>{court.match.team2.player1.name}</span>
-                                                    <span className='text-[10px] font-black uppercase leading-tight w-full truncate'>{court.match.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
+                                                    <span className='text-[10px] font-black uppercase leading-tight w-full'>{court.match.team2.player1.name}</span>
+                                                    <span className='text-[10px] font-black uppercase leading-tight w-full'>{court.match.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         ) : null}
@@ -321,15 +369,16 @@ const RegistroElevador = () => {
                     </AccordionItem>
                 ))}
             </Accordion>
-            <Card><CardHeader><CardTitle className='text-lg'>Clasificación</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">Pts.</TableHead></TableRow></TableHeader><TableBody>{sortedRanking.map((p, i) => (<TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}><TableCell>{i+1}</TableCell><TableCell className='max-w-[150px] truncate text-xs'>{p.name}</TableCell><TableCell className="text-center text-xs">{p.gamesWon}</TableCell><TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell></TableRow>))}</TableBody></Table>{user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> {isSaving ? '...' : 'Finalizar'}</Button></div>}</CardContent></Card>
+            <Card><CardHeader><CardTitle className='text-lg'>Clasificación</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">Pts.</TableHead></TableRow></TableHeader><TableBody>{sortedRanking.map((p, i) => (<TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}><TableCell>{i+1}</TableCell><TableCell className='max-w-[150px] truncate text-xs uppercase'>{p.name}</TableCell><TableCell className="text-center text-xs">{p.gamesWon}</TableCell><TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell></TableRow>))}</TableBody></Table>{user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> {isSaving ? 'Guardando...' : 'Finalizar'}</Button></div>}</CardContent></Card>
         </div>
     );
 
     return (
-        <Card><CardHeader><CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle><CardDescription>{category} Cat.</CardDescription></CardHeader><CardContent className="space-y-6">
-            {user?.role === 'guest' ? <Alert><Info className="h-4 w-4" /><AlertTitle>Solo lectura</AlertTitle><AlertDescription>Inicia sesión como Admin.</AlertDescription></Alert> : (
+        <Card><CardHeader><CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle><CardDescription>{category} Cat.</CardDescription></CardHeader>
+        <CardContent className="space-y-6">
+            {user?.role === 'guest' ? <Alert><Info className="h-4 w-4" /><AlertTitle>Solo lectura</AlertTitle><AlertDescription>Inicia sesión como Admin para crear eventos.</AlertDescription></Alert> : (
                 <><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Modalidad</Label><Select value={modality} onValueChange={(v) => { setModality(v as any); resetSetupState(); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="elevador">Individual</SelectItem><SelectItem value="elevadorParejas">Parejas</SelectItem></SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Modalidad</Label><Select value={modality} onValueChange={(v) => { setModality(v as any); resetSetupState(); }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="elevador">Individual</SelectItem><SelectItem value="elevadorParejas">Parejas Fijas</SelectItem></SelectContent></Select></div>
                     <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
                     {modality === 'elevador' && <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem></SelectContent></Select></div>}
                 </div>{modality === 'elevador' ? (
