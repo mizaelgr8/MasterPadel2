@@ -17,6 +17,8 @@ const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Mingo';
 const FINANZAS_USERNAME = 'Administrador';
 const FINANZAS_PASSWORD = 'Finanzas2026';
+const STAFF_USERNAME = 'Master padel';
+const STAFF_PASSWORD = 'MasterPadel2025';
 const GUEST_USERNAME = 'Invitado';
 const GUEST_PASSWORD = '123456';
 
@@ -49,7 +51,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (username === ADMIN_USERNAME && pass === ADMIN_PASSWORD) {
         authenticatedUser = { username: username, role: 'admin' };
-    } else if (username === 'Master padel' && pass === 'Masterpadel01') {
+    } else if (username === STAFF_USERNAME && pass === STAFF_PASSWORD) {
         authenticatedUser = { username: username, role: 'admin' };
     } else if (username === FINANZAS_USERNAME && pass === FINANZAS_PASSWORD) {
         authenticatedUser = { username: username, role: 'admin' };
