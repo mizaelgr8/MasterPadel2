@@ -16,7 +16,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Checkbox } from './ui/checkbox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth } from '@/context/AuthContext';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useCategory } from '@/context/CategoryContext';
@@ -24,25 +23,6 @@ import { useFirebase } from '@/context/FirebaseContext';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 const TOTAL_ROUNDS = 7;
-
-const sortPlayersByRank = (players: Player[]): Player[] => {
-    return [...players].sort((a, b) => {
-        const val = (v: number | undefined) => v || 0;
-        const aAch = a.achievements || { king: 0, shield: 0, sword: 0 };
-        const bAch = b.achievements || { king: 0, shield: 0, sword: 0 };
-        if (val(bAch.king) !== val(aAch.king)) return bAch.king - aAch.king;
-        if (val(bAch.shield) !== val(aAch.shield)) return bAch.shield - aAch.shield;
-        if (val(bAch.sword) !== val(aAch.sword)) return bAch.sword - aAch.sword;
-        const aMed = a.medals || { gold: 0, silver: 0, bronze: 0 };
-        const bMed = b.medals || { gold: 0, silver: 0, bronze: 0 };
-        if (val(bMed.gold) !== val(aMed.gold)) return bMed.gold - aMed.gold;
-        if (val(bMed.silver) !== val(aMed.silver)) return bMed.silver - aMed.silver;
-        if (val(bMed.bronze) !== val(aMed.bronze)) return bMed.bronze - aMed.bronze;
-        const avgA = val(a.totalGames) > 0 ? (val(a.totalPoints) / val(a.totalGames)) : 0;
-        const avgB = val(b.totalGames) > 0 ? (val(b.totalPoints) / val(b.totalGames)) : 0;
-        return avgB - avgA;
-    });
-};
 
 const RegistroElevador = () => {
     const { db } = useFirebase();
@@ -53,9 +33,7 @@ const RegistroElevador = () => {
     const [ongoingMatches, setOngoingMatches] = useState<OngoingElevador[]>([]);
     const [selectedMatch, setSelectedMatch] = useState<OngoingElevador | null>(null);
     const [view, setView] = useState<'loading' | 'list' | 'setup' | 'match'>('loading');
-    const [modality, setModality] = useState<'elevador' | 'elevadorParejas'>('elevador');
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
-    const [fixedPairs, setFixedPairs] = useState<Pair[]>([]);
     const [numberOfPlayers, setNumberOfPlayers] = useState<string>('12');
     const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [eventName, setEventName] = useState('');
@@ -67,12 +45,14 @@ const RegistroElevador = () => {
         if (!db) return;
         const unsubPlayers = onSnapshot(collection(db, "players"), (snapshot) => {
             const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
-            let filtered = [];
-            if (category === '4ta') {
-                filtered = list.filter(p => !p.category || p.category?.toLowerCase() === '4ta' || p.category?.toLowerCase().includes('4ta'));
-            } else {
-                filtered = list.filter(p => p.category === category);
-            }
+            let filtered = list.filter(p => {
+                const pCat = (p.category || '').toLowerCase().trim();
+                const targetCat = category.toLowerCase().trim();
+                if (targetCat === '4ta') {
+                    return pCat === '4ta' || pCat === '' || !p.category || pCat.includes('4ta');
+                }
+                return pCat === targetCat;
+            });
             setAllPlayers(filtered.sort((a,b) => a.name.localeCompare(b.name)));
         });
         return () => unsubPlayers();
@@ -98,7 +78,7 @@ const RegistroElevador = () => {
             const updated = ongoingMatches.find(m => m.id === selectedMatch.id);
             setSelectedMatch(updated || null);
         }
-    }, [ongoingMatches]);
+    }, [ongoingMatches, selectedMatch]);
 
     useEffect(() => {
         if (view === 'loading' && !loading) setView(ongoingMatches.length > 0 ? 'list' : 'setup');
@@ -117,36 +97,27 @@ const RegistroElevador = () => {
         if (!db) return;
         const initialStats: Record<string, ElevadorPlayerStats> = {};
         const initialCourts: ElevadorCourt[] = [];
-
-        if (modality === 'elevador') {
-            const sorted = sortPlayersByRank(selectedPlayers);
-            for (let i = 0; i < sorted.length / 4; i++) {
-                const cp = sorted.slice(i * 4, (i * 4) + 4).map(p => ({ ...p, court: i + 1 }));
-                const shuffled = [...cp].sort(() => 0.5 - Math.random());
-                initialCourts.push({ 
-                    courtNumber: i + 1, players: cp as any, 
-                    match: { team1: { player1: shuffled[0] as any, player2: shuffled[1] as any }, team2: { player1: shuffled[2] as any, player2: shuffled[3] as any }, score1: null, score2: null }
-                });
-            }
-            selectedPlayers.forEach(p => {
-                const c = initialCourts.find(ct => ct.players.some(cp => cp.id === p.id));
-                initialStats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [c?.courtNumber || 0], finalCourt: c?.courtNumber || 0 };
+        
+        const shuffled = [...selectedPlayers].sort(() => 0.5 - Math.random());
+        for (let i = 0; i < shuffled.length / 4; i++) {
+            const courtPlayers = shuffled.slice(i * 4, (i * 4) + 4).map(p => ({ ...p, court: i + 1 }));
+            initialCourts.push({ 
+                courtNumber: i + 1, 
+                players: courtPlayers as any, 
+                match: { 
+                    team1: { player1: courtPlayers[0] as any, player2: courtPlayers[1] as any }, 
+                    team2: { player1: courtPlayers[2] as any, player2: courtPlayers[3] as any }, 
+                    score1: null, score2: null 
+                }
             });
-        } else {
-            for (let i = 0; i < fixedPairs.length / 2; i++) {
-                const p1 = fixedPairs[i * 2], p2 = fixedPairs[i * 2 + 1];
-                const cp = [{...p1.player1, court:i+1}, {...p1.player2, court:i+1}, {...p2.player1, court:i+1}, {...p2.player2, court:i+1}];
-                initialCourts.push({ courtNumber: i+1, players: cp as any, match: { team1: {player1:cp[0] as any, player2:cp[1] as any}, team2: {player1:cp[2] as any, player2:cp[3] as any}, score1: null, score2: null } });
-            }
-            fixedPairs.forEach(pair => [pair.player1, pair.player2].forEach(p => {
-                const c = initialCourts.find(ct => ct.players.some(cp => cp.id === p.id));
-                initialStats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [c?.courtNumber || 0], finalCourt: c?.courtNumber || 0 };
-            }));
+            courtPlayers.forEach(p => {
+                initialStats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [i + 1], finalCourt: i + 1 };
+            });
         }
 
         const newMatchData: Omit<OngoingElevador, 'id'> = { 
-            eventName: eventName || "Elevador", modality, date, numberOfPlayers: modality === 'elevador' ? numberOfPlayers : (fixedPairs.length * 2).toString(), 
-            selectedPlayers: modality === 'elevador' ? selectedPlayers : [], fixedPairs: modality === 'elevadorParejas' ? fixedPairs : [], 
+            eventName: eventName || "Elevador Individual", modality: 'elevador', date, numberOfPlayers, 
+            selectedPlayers, fixedPairs: [], 
             rounds: [{ roundNumber: 1, courts: initialCourts }], stage: 'playing', playerStats: initialStats, category 
         };
         try {
@@ -171,35 +142,36 @@ const RegistroElevador = () => {
 
     const startNextRound = () => {
         if (!selectedMatch || !db) return;
-        const { rounds, playerStats, modality: mod, numberOfPlayers: numStr } = selectedMatch;
+        const { rounds, playerStats, numberOfPlayers: numStr } = selectedMatch;
         const last = rounds[rounds.length - 1];
         if (!last.courts.every(c => c.match && c.match.score1 !== null)) return;
 
         const newStats = JSON.parse(JSON.stringify(playerStats));
         last.courts.forEach(c => {
             const m = c.match!; const t1W = m.score1! > m.score2!;
-            [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].gamesWon += t1W ? 1 : 0; newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
-            [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].gamesWon += t1W ? 0 : 1; newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
+            [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
+            [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
         });
 
         const nCourts = parseInt(numStr, 10) / 4;
         const nextMap: Record<number, any[]> = {};
         for(let i=1; i<=nCourts; i++) nextMap[i] = [];
+        
         last.courts.forEach(c => {
             const m = c.match!; const t1W = m.score1! > m.score2!;
-            const w = t1W ? [m.team1.player1, m.team1.player2] : [m.team2.player1, m.team2.player2];
-            const l = t1W ? [m.team2.player1, m.team2.player2] : [m.team1.player1, m.team1.player2];
-            if (c.courtNumber === 1) { nextMap[1].push(...w); nextMap[2].push(...l); }
-            else if (c.courtNumber === nCourts) { nextMap[c.courtNumber-1].push(...w); nextMap[c.courtNumber].push(...l); }
-            else { nextMap[c.courtNumber-1].push(...w); nextMap[c.courtNumber+1].push(...l); }
+            const winners = t1W ? [m.team1.player1, m.team1.player2] : [m.team2.player1, m.team2.player2];
+            const losers = t1W ? [m.team2.player1, m.team2.player2] : [m.team1.player1, m.team1.player2];
+            if (c.courtNumber === 1) { nextMap[1].push(...winners); nextMap[2].push(...losers); }
+            else if (c.courtNumber === nCourts) { nextMap[c.courtNumber-1].push(...winners); nextMap[c.courtNumber].push(...losers); }
+            else { nextMap[c.courtNumber-1].push(...winners); nextMap[c.courtNumber+1].push(...losers); }
         });
 
         const newCourts: ElevadorCourt[] = [];
         for (let i = 1; i <= nCourts; i++) {
-            const cp = nextMap[i].map(p => ({...p, court: i}));
-            cp.forEach(p => newStats[p.id].finalCourt = i);
-            const shuffled = [...cp].sort(() => 0.5 - Math.random());
-            newCourts.push({ courtNumber: i, players: cp as any, match: { team1:{player1:shuffled[0], player2:shuffled[1]}, team2:{player1:shuffled[2], player2:shuffled[3]}, score1:null, score2:null } });
+            const courtPlayers = nextMap[i].map(p => ({...p, court: i}));
+            courtPlayers.forEach(p => newStats[p.id].finalCourt = i);
+            const r = [...courtPlayers].sort(() => 0.5 - Math.random());
+            newCourts.push({ courtNumber: i, players: courtPlayers as any, match: { team1:{player1:r[0], player2:r[1]}, team2:{player1:r[2], player2:r[3]}, score1:null, score2:null } });
         }
         const nRound = { roundNumber: rounds.length + 1, courts: newCourts, isBonus: rounds.length + 1 === TOTAL_ROUNDS };
         setOpenAccordion(`round-${nRound.roundNumber}`);
@@ -208,10 +180,7 @@ const RegistroElevador = () => {
 
     const sortedRanking = useMemo(() => {
         if (!selectedMatch) return [];
-        const res = Object.values(selectedMatch.playerStats).map(s => ({
-            ...s, pointsDifference: s.pointsScored - s.pointsReceived
-        })).sort((a,b) => b.gamesWon - a.gamesWon || b.pointsDifference - a.pointsDifference || a.finalCourt - b.finalCourt);
-        return res;
+        return Object.values(selectedMatch.playerStats).sort((a,b) => (a.finalCourt - b.finalCourt) || (b.pointsScored - a.pointsScored));
     }, [selectedMatch]);
 
     const saveEvent = async () => {
@@ -220,7 +189,7 @@ const RegistroElevador = () => {
         try {
             const batch = writeBatch(db);
             const results: DailyElevadorResult[] = sortedRanking.map(r => ({ 
-                playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: r.pointsReceived, pointsDifference: r.pointsDifference, finalCourt: r.finalCourt 
+                playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: r.pointsReceived, pointsDifference: r.pointsScored - r.pointsReceived, finalCourt: r.finalCourt 
             }));
             const newDoc = doc(collection(db, "dailyElevadorEvents"));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
@@ -254,18 +223,18 @@ const RegistroElevador = () => {
                                     <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
                                     <CardContent className="p-4">
                                         <div className='flex items-center gap-2'>
-                                            <div className='flex-1 flex flex-col items-end gap-1 min-h-[60px] justify-center'>
-                                                <span className='text-[12px] font-black uppercase text-right leading-tight text-slate-200'>{court.match?.team1.player1.name}</span>
-                                                <span className='text-[12px] font-black uppercase text-right leading-tight text-slate-200'>{court.match?.team1.player2.name}</span>
+                                            <div className='flex-1 flex flex-col items-end gap-1 min-h-[60px] justify-center overflow-hidden'>
+                                                <span className='text-[11px] font-black uppercase text-right leading-tight text-slate-200 truncate w-full'>{court.match?.team1.player1.name}</span>
+                                                <span className='text-[11px] font-black uppercase text-right leading-tight text-slate-200 truncate w-full'>{court.match?.team1.player2.name}</span>
                                             </div>
-                                            <div className="flex items-center gap-1 shrink-0 px-2">
-                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                            <div className="flex items-center gap-1 shrink-0 px-1">
+                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                 <span className='font-black text-primary'>-</span>
-                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
+                                                <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-9 h-9 text-center text-lg font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                             </div>
-                                            <div className='flex-1 flex flex-col items-start gap-1 min-h-[60px] justify-center'>
-                                                <span className='text-[12px] font-black uppercase leading-tight text-slate-200'>{court.match?.team2.player1.name}</span>
-                                                <span className='text-[12px] font-black uppercase leading-tight text-slate-200'>{court.match?.team2.player2.name}</span>
+                                            <div className='flex-1 flex flex-col items-start gap-1 min-h-[60px] justify-center overflow-hidden'>
+                                                <span className='text-[11px] font-black uppercase leading-tight text-slate-200 truncate w-full'>{court.match?.team2.player1.name}</span>
+                                                <span className='text-[11px] font-black uppercase leading-tight text-slate-200 truncate w-full'>{court.match?.team2.player2.name}</span>
                                             </div>
                                         </div>
                                     </CardContent>
@@ -275,7 +244,7 @@ const RegistroElevador = () => {
                     </AccordionItem>
                 ))}
             </Accordion>
-            <Card><CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">G</TableHead><TableHead className="text-center">Pts.</TableHead></TableRow></TableHeader><TableBody>{sortedRanking.map((p, i) => (<TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}><TableCell>{i+1}</TableCell><TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell><TableCell className="text-center text-xs">{p.gamesWon}</TableCell><TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell></TableRow>))}</TableBody></Table>{user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> Finalizar y Guardar</Button></div>}</CardContent></Card>
+            <Card><CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader><CardContent><Table><TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader><TableBody>{sortedRanking.map((p, i) => (<TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}><TableCell>{i+1}</TableCell><TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell><TableCell className="text-center text-xs">{p.finalCourt}</TableCell><TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell></TableRow>))}</TableBody></Table>{user?.role === 'admin' && <div className="flex justify-end mt-6"><Button disabled={isSaving} onClick={saveEvent}><Sparkles className="mr-2 h-4 w-4" /> Finalizar y Guardar</Button></div>}</CardContent></Card>
         </div>
     );
 

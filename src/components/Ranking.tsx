@@ -33,12 +33,15 @@ const RankingGeneralContent = () => {
 
             const allPlayers = playersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
             
-            // Filtro inclusivo para 4ta
             const filterByCat = <T extends { category?: Category | null }>(list: T[]) => {
-                if (category === '4ta') {
-                    return list.filter(p => !p.category || p.category?.toLowerCase() === '4ta' || p.category?.toLowerCase().includes('4ta'));
-                }
-                return list.filter(p => p.category === category);
+                const target = category.toLowerCase().trim();
+                return list.filter(p => {
+                    const pCat = (p.category || '').toLowerCase().trim();
+                    if (target === '4ta') {
+                        return pCat === '4ta' || pCat === '' || !p.category || pCat.includes('4ta');
+                    }
+                    return pCat === target;
+                });
             };
 
             const catPlayers = filterByCat(allPlayers);

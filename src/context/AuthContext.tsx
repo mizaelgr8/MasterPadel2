@@ -13,6 +13,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Nueva clave de sesión para forzar el deslogueo de todos los usuarios
+const SESSION_KEY = 'master_padel_auth_v3';
+
 const ADMIN_USERNAME = 'Admin';
 const ADMIN_PASSWORD = 'Mingo';
 const FINANZAS_USERNAME = 'Administrador';
@@ -28,7 +31,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem('user');
+      // Limpia versiones antiguas de sesiones si existen
+      if (localStorage.getItem('user')) localStorage.removeItem('user');
+      
+      const storedUser = localStorage.getItem(SESSION_KEY);
        if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
@@ -37,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
-      localStorage.removeItem('user');
+      localStorage.removeItem(SESSION_KEY);
       setUser({ username: GUEST_USERNAME, role: 'guest' });
     } finally {
       setLoading(false);
@@ -60,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (authenticatedUser) {
-      localStorage.setItem('user', JSON.stringify(authenticatedUser));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(authenticatedUser));
       setUser(authenticatedUser);
       return authenticatedUser;
     }
@@ -69,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('user');
+    localStorage.removeItem(SESSION_KEY);
     setUser({ username: GUEST_USERNAME, role: 'guest' });
   };
 
