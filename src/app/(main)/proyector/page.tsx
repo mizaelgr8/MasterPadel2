@@ -100,14 +100,29 @@ const ProyectorLiveStandings = () => {
             return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
         } else if (ongoingElevador) {
             const stats: Record<string, any> = {};
-            ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0 });
+            const isPairs = ongoingElevador.modality === 'elevadorParejas';
+
+            if (isPairs) {
+                ongoingElevador.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, court: 1 });
+            } else {
+                ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, court: 1 });
+            }
+
             ongoingElevador.rounds?.forEach(round => round.courts.forEach(court => {
                 if (!court.match || court.match.score1 === null || court.match.score2 === null) return;
                 const m = court.match;
-                [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; if(m.score1! > m.score2!) stats[id].g++; }});
-                [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; if(m.score2! > m.score1!) stats[id].g++; }});
+                
+                if (isPairs) {
+                    const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
+                    const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
+                    if (stats[p1Id]) { stats[p1Id].points += m.score1!; stats[p1Id].court = court.courtNumber; }
+                    if (stats[p2Id]) { stats[p2Id].points += m.score2!; stats[p2Id].court = court.courtNumber; }
+                } else {
+                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; stats[id].court = court.courtNumber; }});
+                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; stats[id].court = court.courtNumber; }});
+                }
             }));
-            return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
+            return Object.values(stats).sort((a, b) => (a.court - b.court) || (b.points - a.points));
         }
         return [];
     }, [ongoingMatch, ongoingElevador]);
@@ -124,7 +139,7 @@ const ProyectorLiveStandings = () => {
                     <TableBody>{results.map((row, index) => (
                         <TableRow key={index} className="border-slate-800 h-16 text-white hover:bg-slate-800/50 transition-colors">
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
-                            <TableCell className="font-bold text-xl uppercase">{row.name}</TableCell>
+                            <TableCell className="font-bold text-xl uppercase truncate max-w-[400px]">{row.name}</TableCell>
                             <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                         </TableRow>
                     ))}</TableBody>
@@ -258,7 +273,7 @@ export default function ProyectorPage() {
             
             const finalRankings = cats.map(cat => {
                 const categoryPlayers = allPlayers.filter(p => {
-                    const pCat = p.category?.toLowerCase() || '';
+                    const pCat = (p.category || '').toLowerCase() || '';
                     if (cat === '4ta') return !p.category || pCat.includes('4') || pCat === 'invitado';
                     return p.category === cat;
                 });

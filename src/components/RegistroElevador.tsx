@@ -2,7 +2,7 @@
 "use client";
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { collection, doc, updateDoc, deleteDoc, query, where, addDoc, onSnapshot, writeBatch, increment } from 'firebase/firestore';
-import type { Player, ElevadorPlayer, ElevadorCourt, OngoingElevador, DailyElevadorResult, Category, Pair, ElevadorPlayerStats } from '@/types';
+import type { Player, ElevadorPlayer, ElevadorCourt, OngoingElevador, DailyElevadorResult, Category, Pair, ElevadorPlayerStats, DailyPairResult } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, Info, Users } from 'lucide-react';
+import { Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, Info, Users, User, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
@@ -33,13 +33,26 @@ const RegistroElevador = () => {
     const [ongoingMatches, setOngoingMatches] = useState<OngoingElevador[]>([]);
     const [selectedMatch, setSelectedMatch] = useState<OngoingElevador | null>(null);
     const [view, setView] = useState<'loading' | 'list' | 'setup' | 'match'>('loading');
+    
+    // Setup state
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
+    const [fixedPairs, setFixedPairs] = useState<Pair[]>([]);
+    const [modality, setModality] = useState<'elevador' | 'elevadorParejas'>('elevador');
     const [numberOfPlayers, setNumberOfPlayers] = useState<string>('12');
+    const [numberOfPairs, setNumberOfPairs] = useState<string>('6');
     const [date, setDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
     const [eventName, setEventName] = useState('');
+    const [player1Id, setPlayer1Id] = useState<string | null>(null);
+    const [player2Id, setPlayer2Id] = useState<string | null>(null);
+
     const [openAccordion, setOpenAccordion] = useState<string>("round-1");
     const [isSaving, setIsSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    const availablePlayersForPairing = useMemo(() => {
+        const pairedPlayerIds = new Set(fixedPairs.flatMap(p => [p.player1.id, p.player2.id]));
+        return allPlayers.filter(p => !pairedPlayerIds.has(p.id));
+    }, [allPlayers, fixedPairs]);
 
     useEffect(() => {
         if (!db) return;
@@ -93,36 +106,76 @@ const RegistroElevador = () => {
         setSelectedPlayers(prev => isSelected ? prev.filter(p => p.id !== player.id) : [...prev, player]);
     };
 
+    const handleAddPair = () => {
+        const p1 = allPlayers.find(p => p.id === player1Id);
+        const p2 = allPlayers.find(p => p.id === player2Id);
+        if (p1 && p2 && p1.id !== p2.id) {
+            const pairId = [p1.id, p2.id].sort().join('-');
+            if (fixedPairs.some(p => p.id === pairId)) return;
+            setFixedPairs([...fixedPairs, { id: pairId, player1: p1, player2: p2 }]);
+            setPlayer1Id(null);
+            setPlayer2Id(null);
+        }
+    };
+
     const startElevador = async () => {
         if (!db) return;
         const initialStats: Record<string, ElevadorPlayerStats> = {};
         const initialCourts: ElevadorCourt[] = [];
         
-        const shuffled = [...selectedPlayers].sort(() => 0.5 - Math.random());
-        for (let i = 0; i < shuffled.length / 4; i++) {
-            const courtPlayers = shuffled.slice(i * 4, (i * 4) + 4).map(p => ({ ...p, court: i + 1 }));
+        let shuffledItems: any[] = [];
+        const isPairs = modality === 'elevadorParejas';
+
+        if (isPairs) {
+            shuffledItems = [...fixedPairs].sort(() => 0.5 - Math.random());
+        } else {
+            shuffledItems = [...selectedPlayers].sort(() => 0.5 - Math.random());
+        }
+
+        const numCourts = shuffledItems.length / (isPairs ? 2 : 4);
+
+        for (let i = 0; i < numCourts; i++) {
+            let team1, team2;
+            if (isPairs) {
+                const pair1 = shuffledItems[i * 2];
+                const pair2 = shuffledItems[i * 2 + 1];
+                team1 = { player1: { ...pair1.player1, court: i + 1 }, player2: { ...pair1.player2, court: i + 1 } };
+                team2 = { player1: { ...pair2.player1, court: i + 1 }, player2: { ...pair2.player2, court: i + 1 } };
+                
+                // Init stats for pairs
+                [pair1, pair2].forEach(p => {
+                    initialStats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [i + 1], finalCourt: i + 1 };
+                });
+            } else {
+                const p = shuffledItems.slice(i * 4, (i * 4) + 4).map(player => ({ ...player, court: i + 1 }));
+                team1 = { player1: p[0], player2: p[1] };
+                team2 = { player1: p[2], player2: p[3] };
+                
+                p.forEach(player => {
+                    initialStats[player.id] = { playerId: player.id, name: player.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [i + 1], finalCourt: i + 1 };
+                });
+            }
+
             initialCourts.push({ 
                 courtNumber: i + 1, 
-                players: courtPlayers as any, 
-                match: { 
-                    team1: { player1: courtPlayers[0] as any, player2: courtPlayers[1] as any }, 
-                    team2: { player1: courtPlayers[2] as any, player2: courtPlayers[3] as any }, 
-                    score1: null, score2: null 
-                }
-            });
-            courtPlayers.forEach(p => {
-                initialStats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [i + 1], finalCourt: i + 1 };
+                players: isPairs ? [] : [], // Not strictly used for rendering logic anymore
+                match: { team1: team1 as any, team2: team2 as any, score1: null, score2: null }
             });
         }
 
         const newMatchData: Omit<OngoingElevador, 'id'> = { 
-            eventName: eventName || "Elevador Individual", modality: 'elevador', date, numberOfPlayers, 
-            selectedPlayers, fixedPairs: [], 
+            eventName: eventName || (isPairs ? "Elevador Parejas" : "Elevador Individual"), 
+            modality, date, numberOfPlayers, 
+            selectedPlayers: isPairs ? [] : selectedPlayers, 
+            fixedPairs: isPairs ? fixedPairs : [], 
             rounds: [{ roundNumber: 1, courts: initialCourts }], stage: 'playing', playerStats: initialStats, category 
         };
+
         try {
             const docRef = await addDoc(collection(db, "ongoingElevador"), newMatchData);
-            setSelectedMatch({ ...newMatchData, id: docRef.id }); setView('match'); setOpenAccordion("round-1");
+            setSelectedMatch({ ...newMatchData, id: docRef.id }); 
+            setView('match'); 
+            setOpenAccordion("round-1");
         } catch (e) { toast({title: "Error"}); }
     };
 
@@ -132,7 +185,7 @@ const RegistroElevador = () => {
         const newRounds = JSON.parse(JSON.stringify(selectedMatch.rounds));
         const match = newRounds[ri].courts[ci].match;
         if (!match) return;
-        // Lógica de suma a 7 puntos
+        
         if (value === '') { match.score1 = null; match.score2 = null; }
         else if (!isNaN(score) && score >= 0 && score <= 7) {
             if (team === 'team1') { match.score1 = score; match.score2 = 7 - score; }
@@ -143,37 +196,87 @@ const RegistroElevador = () => {
 
     const startNextRound = () => {
         if (!selectedMatch || !db) return;
-        const { rounds, playerStats, numberOfPlayers: numStr } = selectedMatch;
+        const { rounds, playerStats, modality, fixedPairs, selectedPlayers, numberOfPlayers: numStr } = selectedMatch;
+        const isPairs = modality === 'elevadorParejas';
         const last = rounds[rounds.length - 1];
         if (!last.courts.every(c => c.match && c.match.score1 !== null)) return;
 
         const newStats = JSON.parse(JSON.stringify(playerStats));
         last.courts.forEach(c => {
             const m = c.match!;
-            [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
-            [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
+            const t1Id = isPairs ? m.team1.player1.id.split('-')[0] : ''; // In pairs, we use the ID logic carefully
+            // Actually, in our current setup for stats, the key is pair.id or player.id
+            // Let's identify the entities by their position in the match object
+            
+            if (isPairs) {
+                // Find pair ID by players
+                const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
+                const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
+                newStats[p1Id].pointsScored += m.score1!;
+                newStats[p1Id].pointsReceived += m.score2!;
+                newStats[p2Id].pointsScored += m.score2!;
+                newStats[p2Id].pointsReceived += m.score1!;
+            } else {
+                [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
+                [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
+            }
         });
 
-        const nCourts = parseInt(numStr, 10) / 4;
+        const nCourts = last.courts.length;
         const nextMap: Record<number, any[]> = {};
         for(let i=1; i<=nCourts; i++) nextMap[i] = [];
         
         last.courts.forEach(c => {
-            const m = c.match!; const t1W = m.score1! > m.score2!;
-            const winners = t1W ? [m.team1.player1, m.team1.player2] : [m.team2.player1, m.team2.player2];
-            const losers = t1W ? [m.team2.player1, m.team2.player2] : [m.team1.player1, m.team1.player2];
-            if (c.courtNumber === 1) { nextMap[1].push(...winners); nextMap[2].push(...losers); }
-            else if (c.courtNumber === nCourts) { nextMap[c.courtNumber-1].push(...winners); nextMap[c.courtNumber].push(...losers); }
-            else { nextMap[c.courtNumber-1].push(...winners); nextMap[c.courtNumber+1].push(...losers); }
+            const m = c.match!; 
+            const t1W = m.score1! > m.score2!;
+            
+            let winners, losers;
+            if (isPairs) {
+                winners = t1W ? [{player1: m.team1.player1, player2: m.team1.player2, id: [m.team1.player1.id, m.team1.player2.id].sort().join('-')}] : [{player1: m.team2.player1, player2: m.team2.player2, id: [m.team2.player1.id, m.team2.player2.id].sort().join('-')}];
+                losers = t1W ? [{player1: m.team2.player1, player2: m.team2.player2, id: [m.team2.player1.id, m.team2.player2.id].sort().join('-')}] : [{player1: m.team1.player1, player2: m.team1.player2, id: [m.team1.player1.id, m.team1.player2.id].sort().join('-')}];
+            } else {
+                winners = t1W ? [m.team1.player1, m.team1.player2] : [m.team2.player1, m.team2.player2];
+                losers = t1W ? [m.team2.player1, m.team2.player2] : [m.team1.player1, m.team1.player2];
+            }
+
+            if (c.courtNumber === 1) { 
+                nextMap[1].push(...winners); 
+                nextMap[2].push(...losers); 
+            } else if (c.courtNumber === nCourts) { 
+                nextMap[c.courtNumber-1].push(...winners); 
+                nextMap[c.courtNumber].push(...losers); 
+            } else { 
+                nextMap[c.courtNumber-1].push(...winners); 
+                nextMap[c.courtNumber+1].push(...losers); 
+            }
         });
 
         const newCourts: ElevadorCourt[] = [];
         for (let i = 1; i <= nCourts; i++) {
-            const courtPlayers = nextMap[i].map(p => ({...p, court: i}));
-            courtPlayers.forEach(p => newStats[p.id].finalCourt = i);
-            const r = [...courtPlayers].sort(() => 0.5 - Math.random());
-            newCourts.push({ courtNumber: i, players: courtPlayers as any, match: { team1:{player1:r[0], player2:r[1]}, team2:{player1:r[2], player2:r[3]}, score1:null, score2:null } });
+            const itemsInCourt = nextMap[i];
+            let team1, team2;
+
+            if (isPairs) {
+                const pair1 = itemsInCourt[0];
+                const pair2 = itemsInCourt[1];
+                team1 = { player1: { ...pair1.player1, court: i }, player2: { ...pair1.player2, court: i } };
+                team2 = { player1: { ...pair2.player1, court: i }, player2: { ...pair2.player2, court: i } };
+                newStats[pair1.id].finalCourt = i;
+                newStats[pair2.id].finalCourt = i;
+            } else {
+                const r = [...itemsInCourt].sort(() => 0.5 - Math.random());
+                team1 = { player1: { ...r[0], court: i }, player2: { ...r[1], court: i } };
+                team2 = { player1: { ...r[2], court: i }, player2: { ...r[3], court: i } };
+                r.forEach(p => newStats[p.id].finalCourt = i);
+            }
+
+            newCourts.push({ 
+                courtNumber: i, 
+                players: [], 
+                match: { team1: team1 as any, team2: team2 as any, score1: null, score2: null } 
+            });
         }
+
         const nRound = { roundNumber: rounds.length + 1, courts: newCourts, isBonus: rounds.length + 1 === TOTAL_ROUNDS };
         setOpenAccordion(`round-${nRound.roundNumber}`);
         updateDoc(doc(db, "ongoingElevador", selectedMatch.id), { rounds: [...rounds, nRound], playerStats: newStats });
@@ -189,26 +292,55 @@ const RegistroElevador = () => {
         setIsSaving(true);
         try {
             const batch = writeBatch(db);
-            const results: DailyElevadorResult[] = sortedRanking.map(r => ({ 
-                playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: r.pointsReceived, pointsDifference: r.pointsScored - r.pointsReceived, finalCourt: r.finalCourt 
-            }));
-            const newDoc = doc(collection(db, "dailyElevadorEvents"));
-            batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
+            const isPairs = selectedMatch.modality === 'elevadorParejas';
             
-            for (let i = 0; i < Math.min(results.length, 3); i++) {
-                const pRef = doc(db, 'players', results[i].playerId);
-                const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
-                batch.update(pRef, { [field]: increment(1) });
+            if (isPairs) {
+                const results: DailyPairResult[] = sortedRanking.map(r => {
+                    const pair = selectedMatch.fixedPairs.find(p => p.id === r.playerId);
+                    return {
+                        pairId: r.playerId,
+                        name: r.name,
+                        player1: { id: pair!.player1.id, name: pair!.player1.name },
+                        player2: { id: pair!.player2.id, name: pair!.player2.name },
+                        points: r.pointsScored,
+                        g: 0, e: 0, p: 0 // Simplificado para elevador
+                    };
+                });
+                const newDoc = doc(collection(db, "dailyPairEvents"));
+                batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
+                
+                // Medallas para los 3 primeros pares
+                for (let i = 0; i < Math.min(results.length, 3); i++) {
+                    const pair = results[i];
+                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                    batch.update(doc(db, 'players', pair.player1.id), { [field]: increment(1) });
+                    batch.update(doc(db, 'players', pair.player2.id), { [field]: increment(1) });
+                }
+            } else {
+                const results: DailyElevadorResult[] = sortedRanking.map(r => ({ 
+                    playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: r.pointsReceived, pointsDifference: r.pointsScored - r.pointsReceived, finalCourt: r.finalCourt 
+                }));
+                const newDoc = doc(collection(db, "dailyElevadorEvents"));
+                batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
+                
+                for (let i = 0; i < Math.min(results.length, 3); i++) {
+                    const pRef = doc(db, 'players', results[i].playerId);
+                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                    batch.update(pRef, { [field]: increment(1) });
+                }
             }
             
             await batch.commit(); 
             await deleteDoc(doc(db, "ongoingElevador", selectedMatch.id));
             setSelectedMatch(null); setView('list');
             toast({ title: "Evento Guardado con Éxito" });
-        } catch (e) { toast({title: "Error al guardar", variant: "destructive"}); } finally { setIsSaving(false); }
+        } catch (e) { 
+            console.error(e);
+            toast({title: "Error al guardar", variant: "destructive"}); 
+        } finally { setIsSaving(false); }
     };
 
-    if (view === 'loading') return <Card><CardContent className="flex justify-center p-8"><Loader2 className="animate-spin"/></CardContent></Card>;
+    if (view === 'loading') return <Card><CardContent className="flex justify-center p-8"><Loader2 className="animate-spin text-primary"/></CardContent></Card>;
 
     if (view === 'list') return (
         <Card>
@@ -221,7 +353,10 @@ const RegistroElevador = () => {
             <CardContent className="space-y-2">
                 {ongoingMatches.length > 0 ? ongoingMatches.map(m => (
                     <div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer transition-colors flex justify-between items-center">
-                        <div><p className="font-bold">{m.eventName}</p><p className="text-xs text-muted-foreground">{m.date}</p></div>
+                        <div>
+                            <p className="font-bold">{m.eventName}</p>
+                            <p className="text-xs text-muted-foreground">{m.date} - {m.modality === 'elevadorParejas' ? 'Parejas' : 'Individual'}</p>
+                        </div>
                         <BarChart className="h-4 w-4 opacity-50" />
                     </div>
                 )) : <div className="text-center py-8 text-muted-foreground"><Gamepad2 className="mx-auto h-12 w-12 mb-2" /><p>No hay eventos activos para esta categoría.</p></div>}
@@ -246,7 +381,6 @@ const RegistroElevador = () => {
                                         <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
                                         <CardContent className="p-4">
                                             <div className='flex items-center gap-2'>
-                                                {/* Diseño vertical para asegurar 4 jugadores visibles */}
                                                 <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
                                                     <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
                                                     <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
@@ -278,7 +412,7 @@ const RegistroElevador = () => {
                 <CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>Nombre</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>{selectedMatch.modality === 'elevadorParejas' ? 'Pareja' : 'Nombre'}</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {sortedRanking.map((p, i) => (
                                 <TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}>
@@ -313,33 +447,87 @@ const RegistroElevador = () => {
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-                            <div className="space-y-2"><Label>Jugadores</Label><Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="8">8 Jugadores</SelectItem><SelectItem value="12">12 Jugadores</SelectItem><SelectItem value="16">16 Jugadores</SelectItem></SelectContent></Select></div>
+                            <div className="space-y-2">
+                                <Label>Modalidad</Label>
+                                <Select value={modality} onValueChange={(v) => setModality(v as any)}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="elevador"><User className="inline-block mr-2 h-4 w-4"/>Individual</SelectItem>
+                                        <SelectItem value="elevadorParejas"><Users className="inline-block mr-2 h-4 w-4"/>Pareja Fija</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Seleccionar ({selectedPlayers.length}/{numberOfPlayers})</Label>
-                            <Popover>
-                                <PopoverTrigger asChild><Button variant="outline" className="w-full justify-start"><Users className="mr-2 h-4 w-4" /> Jugadores</Button></PopoverTrigger>
-                                <PopoverContent className="w-[300px] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar..." />
-                                        <CommandList>
-                                            <CommandEmpty>No se encontró ningún jugador.</CommandEmpty>
-                                            <CommandGroup>
-                                                {allPlayers.map(p => (
-                                                    <CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}>
-                                                        <Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> 
-                                                        {p.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div className="flex justify-end">
-                            <Button onClick={startElevador} disabled={selectedPlayers.length !== parseInt(numberOfPlayers, 10)}>
-                                <Dices className="mr-2 h-4 w-4" /> Empezar
+
+                        {modality === 'elevador' ? (
+                            <div className="space-y-2">
+                                <Label>Jugadores ({selectedPlayers.length}/{numberOfPlayers})</Label>
+                                <div className='flex gap-2 items-center mb-2'>
+                                    <Select value={numberOfPlayers} onValueChange={setNumberOfPlayers}>
+                                        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="8">8 Jugadores</SelectItem>
+                                            <SelectItem value="12">12 Jugadores</SelectItem>
+                                            <SelectItem value="16">16 Jugadores</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Popover>
+                                        <PopoverTrigger asChild><Button variant="outline" className="flex-1 justify-start"><Users className="mr-2 h-4 w-4" /> Seleccionar</Button></PopoverTrigger>
+                                        <PopoverContent className="w-[300px] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Buscar..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No se encontró ningún jugador.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {allPlayers.map(p => (
+                                                            <CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}>
+                                                                <Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> 
+                                                                {p.name}
+                                                            </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <Label>Parejas ({fixedPairs.length}/{numberOfPairs})</Label>
+                                <div className='flex gap-2 items-center'>
+                                    <Select value={numberOfPairs} onValueChange={setNumberOfPairs}>
+                                        <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="4">4</SelectItem>
+                                            <SelectItem value="6">6</SelectItem>
+                                            <SelectItem value="8">8</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={player1Id || ''} onValueChange={setPlayer1Id}>
+                                        <SelectTrigger><SelectValue placeholder="J1" /></SelectTrigger>
+                                        <SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <Select value={player2Id || ''} onValueChange={setPlayer2Id}>
+                                        <SelectTrigger><SelectValue placeholder="J2" /></SelectTrigger>
+                                        <SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1Id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <Button onClick={handleAddPair} size="icon"><PlusCircle/></Button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                                    {fixedPairs.map(p => (
+                                        <div key={p.id} className="flex justify-between items-center bg-muted p-2 rounded text-xs uppercase font-bold">
+                                            {p.player1.name} & {p.player2.name}
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setFixedPairs(fixedPairs.filter(fp => fp.id !== p.id))}><X className="h-4 w-4"/></Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-end mt-4">
+                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : fixedPairs.length !== parseInt(numberOfPairs, 10)}>
+                                <Dices className="mr-2 h-4 w-4" /> Empezar Jornada
                             </Button>
                         </div>
                     </>
