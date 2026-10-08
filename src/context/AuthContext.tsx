@@ -18,7 +18,7 @@ const ADMIN_PASSWORD = 'Mingo';
 const FINANZAS_USERNAME = 'Administrador';
 const FINANZAS_PASSWORD = 'Finanzas2026';
 const STAFF_USERNAME = 'Master padel';
-const STAFF_PASSWORD = 'MasterPadel2025';
+const STAFF_PASSWORD = 'MP2026';
 const GUEST_USERNAME = 'Invitado';
 const GUEST_PASSWORD = '123456';
 
@@ -33,13 +33,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
       } else {
-        // Automatically set a guest user if no user is stored.
         setUser({ username: GUEST_USERNAME, role: 'guest' });
       }
     } catch (error) {
       console.error("Failed to parse user from localStorage", error);
       localStorage.removeItem('user');
-      // Default to guest on error.
       setUser({ username: GUEST_USERNAME, role: 'guest' });
     } finally {
       setLoading(false);
@@ -70,7 +68,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     localStorage.removeItem('user');
-    // On logout, default back to guest user instead of null.
     setUser({ username: GUEST_USERNAME, role: 'guest' });
   };
 
