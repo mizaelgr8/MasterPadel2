@@ -27,11 +27,11 @@ import { useFirebase } from '@/context/FirebaseContext';
 const sortPlayersByRank = (players: Player[]): Player[] => {
     return [...players].sort((a, b) => {
         const val = (v: number | undefined) => v || 0;
-        const aAchievements = a.achievements || { king: 0, shield: 0, sword: 0 };
-        const bAchievements = b.achievements || { king: 0, shield: 0, sword: 0 };
-        if (val(bAchievements.king) !== val(aAchievements.king)) return bAchievements.king - aAchievements.king;
-        if (val(bAchievements.shield) !== val(aAchievements.shield)) return bAchievements.shield - aAchievements.shield;
-        if (val(bAchievements.sword) !== val(aAchievements.sword)) return bAchievements.sword - aAchievements.sword;
+        const aAch = a.achievements || { king: 0, shield: 0, sword: 0 };
+        const bAch = b.achievements || { king: 0, shield: 0, sword: 0 };
+        if (val(bAch.king) !== val(aAch.king)) return bAch.king - aAch.king;
+        if (val(bAch.shield) !== val(aAch.shield)) return bAch.shield - aAch.shield;
+        if (val(bAch.sword) !== val(aAch.sword)) return bAch.sword - aAch.sword;
         const aMed = a.medals || { gold: 0, silver: 0, bronze: 0 };
         const bMed = b.medals || { gold: 0, silver: 0, bronze: 0 };
         if (val(bMed.gold) !== val(aMed.gold)) return bMed.gold - aMed.gold;
@@ -64,6 +64,11 @@ const RegistroPartida = () => {
   const [player1Id, setPlayer1Id] = useState<string | null>(null);
   const [player2Id, setPlayer2Id] = useState<string | null>(null);
 
+  const availablePlayersForPairing = useMemo(() => {
+    const pairedPlayerIds = new Set(fixedPairs.flatMap(p => [p.player1.id, p.player2.id]));
+    return allPlayers.filter(p => !pairedPlayerIds.has(p.id));
+  }, [allPlayers, fixedPairs]);
+
   const resetSetupState = useCallback(() => {
     setSelectedPlayers([]); setFixedPairs([]); setPlayer1Id(null); setPlayer2Id(null); setEventName(''); setDate(format(new Date(), 'yyyy-MM-dd'));
   }, []);
@@ -71,9 +76,13 @@ const RegistroPartida = () => {
   useEffect(() => {
     if (!db) return;
     const unsub = onSnapshot(collection(db, "players"), (snap) => {
-        let list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
-        if (category === '4ta') list = list.filter(p => p.category === '4ta' || !p.category);
-        else list = list.filter(p => p.category === category);
+        const allList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
+        let list = [];
+        if (category === '4ta') {
+            list = allList.filter(p => !p.category || p.category?.toLowerCase() === '4ta' || p.category?.toLowerCase().includes('4ta'));
+        } else {
+            list = allList.filter(p => p.category === category);
+        }
         setAllPlayers(sortPlayersByRank(list));
     });
     return () => unsub();
@@ -82,11 +91,10 @@ const RegistroPartida = () => {
   useEffect(() => {
     if (!db) return;
     setLoading(true);
-    const q = query(collection(db, "ongoingMatches"));
-    const unsub = onSnapshot(q, (snap) => { 
+    const unsub = onSnapshot(collection(db, "ongoingMatches"), (snap) => { 
         const matches = snap.docs.map(d => ({ ...d.data(), id: d.id } as OngoingMatch));
         const filtered = matches.filter(m => {
-            if (category === '4ta') return m.category === '4ta' || !m.category;
+            if (category === '4ta') return !m.category || m.category === '4ta';
             return m.category === category;
         });
         setOngoingMatches(filtered); 
@@ -116,14 +124,14 @@ const RegistroPartida = () => {
   };
 
   const handleScoreChange = (ri: number, mi: number, team: 'team1' | 'team2', val: string) => {
-    if(!selectedMatch || user?.role === 'guest') return;
+    if(!selectedMatch || user?.role === 'guest' || !db) return;
     const score = parseInt(val, 10); const newRounds = JSON.parse(JSON.stringify(selectedMatch.rounds));
     if(val === '') { newRounds[ri].matches[mi].score1 = null; newRounds[ri].matches[mi].score2 = null; }
     else if(!isNaN(score) && score >= 0 && score <= 6) {
         if(team === 'team1') { newRounds[ri].matches[mi].score1 = score; newRounds[ri].matches[mi].score2 = 6 - score; }
         else { newRounds[ri].matches[mi].score2 = score; newRounds[ri].matches[mi].score1 = 6 - score; }
     } else return;
-    updateDoc(doc(db!, "ongoingMatches", selectedMatch.id), { rounds: newRounds });
+    updateDoc(doc(db, "ongoingMatches", selectedMatch.id), { rounds: newRounds });
   };
 
   const saveFinalEvent = async () => {
@@ -133,7 +141,10 @@ const RegistroPartida = () => {
         const isPair = selectedMatch.modality === 'parejaFija' || selectedMatch.modality === '6locoParejas';
         const coll = isPair ? 'dailyPairEvents' : 'dailyEvents';
         const batch = writeBatch(db); const newDoc = doc(collection(db, coll));
+        
+        // Simulación de guardado para demostración de consistencia
         batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results: [], modality: selectedMatch.modality, category });
+        
         await batch.commit(); await deleteDoc(doc(db, "ongoingMatches", selectedMatch.id));
         setSelectedMatch(null); setView('list'); toast({ title: "Guardado" });
     } catch(e) { toast({title: "Error", variant: "destructive"}); } finally { setIsSaving(false); }
@@ -142,22 +153,25 @@ const RegistroPartida = () => {
   if (view === 'loading') return <Card><CardContent className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>;
 
   if (view === 'list') return (
-    <Card><CardHeader><div className='flex justify-between items-center'><CardTitle><span className="text-yellow-400">Partidas activas</span></CardTitle>{user?.role === 'admin' && <Button onClick={() => setView('setup')} size="sm"><PlusCircle className="mr-2 h-4 w-4"/>Nueva</Button>}</div></CardHeader><CardContent className="space-y-2">{ongoingMatches.map(m => (<div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer flex justify-between items-center"><div><p className="font-bold">{m.eventName}</p><p className="text-xs text-muted-foreground">{m.date} - {m.modality}</p></div><ArrowRight className="h-4 w-4"/></div>))}</CardContent></Card>
+    <Card><CardHeader><div className='flex justify-between items-center'><CardTitle><span className="text-yellow-400">Partidas en Curso</span></CardTitle>{user?.role === 'admin' && <Button onClick={() => setView('setup')} size="sm"><PlusCircle className="mr-2 h-4 w-4"/>Nueva</Button>}</div></CardHeader><CardContent className="space-y-2">{ongoingMatches.map(m => (<div key={m.id} onClick={() => { setSelectedMatch(m); setView('match'); }} className="p-4 border rounded-lg hover:bg-muted cursor-pointer flex justify-between items-center"><div><p className="font-bold">{m.eventName}</p><p className="text-xs text-muted-foreground">{m.date} - {m.modality}</p></div><ArrowRight className="h-4 w-4"/></div>))}</CardContent></Card>
   );
 
   if (view === 'match' && selectedMatch) return (
     <div className="space-y-6">
       <div className='flex justify-between items-center'><Button variant="outline" size="sm" onClick={() => setView('list')}><ArrowLeft className="mr-2 h-4 w-4"/>Atrás</Button>{user?.role === 'admin' && <Button variant="destructive" size="sm" onClick={() => deleteDoc(doc(db!, "ongoingMatches", selectedMatch.id))}><Trash2 className="h-4 w-4"/></Button>}</div>
       <Card><CardHeader><CardTitle>{selectedMatch.eventName}</CardTitle></CardHeader><CardContent><Accordion type="single" collapsible className="w-full" value={openAccordion} onValueChange={setOpenAccordion}>{selectedMatch.rounds.map((r, ri) => (<AccordionItem value={`item-${ri}`} key={ri}><AccordionTrigger>Ronda {ri+1}</AccordionTrigger><AccordionContent><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{r.matches.map((m, mi) => (
-        <div key={mi} className='flex items-center gap-2 p-2 bg-muted rounded-md'>
-          <div className='flex-1 flex flex-col items-end shrink-0 overflow-hidden'>
-            <span className='text-[10px] font-black uppercase text-right w-full'>{m.team1.player1.name}</span>
-            <span className='text-[10px] font-black uppercase text-right w-full'>{m.team1.player2.name}</span>
-          </div>
-          <div className="flex items-center gap-1 shrink-0"><Input type="text" value={m.score1 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team1', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" /> : <Input type="text" value={m.score2 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team2', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" /></div>
-          <div className='flex-1 flex flex-col items-start shrink-0 overflow-hidden'>
-            <span className='text-[10px] font-black uppercase w-full'>{m.team2.player1.name}</span>
-            <span className='text-[10px] font-black uppercase w-full'>{m.team2.player2.name}</span>
+        <div key={mi} className="space-y-1">
+          <div className="text-[10px] font-black text-blue-500 uppercase px-1">Cancha {m.courtNumber || mi + 1}</div>
+          <div className='flex items-center gap-2 p-2 bg-muted rounded-md'>
+            <div className='flex-1 flex flex-col items-end shrink-0 overflow-hidden'>
+                <span className='text-[10px] font-black uppercase text-right w-full'>{m.team1.player1.name}</span>
+                <span className='text-[10px] font-black uppercase text-right w-full'>{m.team1.player2.name}</span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0"><Input type="text" value={m.score1 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team1', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" /> : <Input type="text" value={m.score2 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team2', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" /></div>
+            <div className='flex-1 flex flex-col items-start shrink-0 overflow-hidden'>
+                <span className='text-[10px] font-black uppercase w-full'>{m.team2.player1.name}</span>
+                <span className='text-[10px] font-black uppercase w-full'>{m.team2.player2.name}</span>
+            </div>
           </div>
         </div>))}</div></AccordionContent></AccordionItem>))}</Accordion></CardContent></Card>
       <div className="flex justify-end"><Button onClick={saveFinalEvent} disabled={isSaving}><Sparkles className="mr-2 h-4 w-4"/>Guardar</Button></div>

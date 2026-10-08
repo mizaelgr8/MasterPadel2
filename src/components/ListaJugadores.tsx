@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch, query, where, onSnapshot, increment } from "firebase/firestore";
-import type { Player, DailyEvent, DailyElevadorEvent, Category, MonthlyRanking, CompletedTournament, DailyPairEvent } from "@/types";
+import type { Player, DailyEvent, DailyElevadorEvent, Category } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ const ListaJugadores = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<PlayerFormData>({ defaultValues: { category: '4ta' }});
+  const { register, handleSubmit, reset, setValue, watch } = useForm<PlayerFormData>({ defaultValues: { category: '4ta' }});
   const { toast } = useToast();
   const { user } = useAuth();
   const { category } = useCategory();
@@ -39,14 +39,15 @@ const ListaJugadores = () => {
     
     const unsubscribe = onSnapshot(playersCollection, (snapshot) => {
         const allPlayersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
-        let categoryPlayers: Player[] = [];
-
-        if (category === '4ta') {
-            // Incluimos explícitamente 4ta y los que no tienen categoría (legado)
-            categoryPlayers = allPlayersList.filter(p => !p.category || p.category === '4ta');
-        } else {
-            categoryPlayers = allPlayersList.filter(p => p.category === category);
-        }
+        
+        // Filtro inteligente para 4ta
+        const categoryPlayers = allPlayersList.filter(p => {
+            const pCat = p.category?.toLowerCase() || '';
+            if (category === '4ta') {
+                return !p.category || pCat === '4ta' || pCat.includes('4ta');
+            }
+            return p.category === category;
+        });
         
         setPlayers(categoryPlayers.sort((a, b) => a.name.localeCompare(b.name)));
         setLoading(false);
@@ -115,7 +116,6 @@ const ListaJugadores = () => {
             };
         });
 
-        // Eventos Individuales
         const dailyEventsSnapshot = await getDocs(collection(db, 'dailyEvents'));
         dailyEventsSnapshot.forEach(doc => {
             const data = doc.data() as DailyEvent;
@@ -128,7 +128,6 @@ const ListaJugadores = () => {
             });
         });
 
-        // Elevador
         const elevadorSnapshot = await getDocs(collection(db, 'dailyElevadorEvents'));
         elevadorSnapshot.forEach(doc => {
             const data = doc.data() as DailyElevadorEvent;

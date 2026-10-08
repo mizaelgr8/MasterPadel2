@@ -47,15 +47,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = (username: string, pass: string): User | null => {
     let authenticatedUser: User | null = null;
     
-    const u = username.toLowerCase();
+    const u = username.trim();
     
-    if (u === ADMIN_USERNAME.toLowerCase() && pass === ADMIN_PASSWORD) {
+    if (u.toLowerCase() === ADMIN_USERNAME.toLowerCase() && pass === ADMIN_PASSWORD) {
         authenticatedUser = { username: ADMIN_USERNAME, role: 'admin' };
-    } else if (u === STAFF_USERNAME.toLowerCase() && pass === STAFF_PASSWORD) {
+    } else if (u.toLowerCase() === STAFF_USERNAME.toLowerCase() && pass === STAFF_PASSWORD) {
         authenticatedUser = { username: STAFF_USERNAME, role: 'admin' };
-    } else if (u === FINANZAS_USERNAME.toLowerCase() && pass === FINANZAS_PASSWORD) {
+    } else if (u.toLowerCase() === FINANZAS_USERNAME.toLowerCase() && pass === FINANZAS_PASSWORD) {
         authenticatedUser = { username: FINANZAS_USERNAME, role: 'admin' };
-    } else if (u === GUEST_USERNAME.toLowerCase() && pass === GUEST_PASSWORD) {
+    } else if (u.toLowerCase() === GUEST_USERNAME.toLowerCase() && pass === GUEST_PASSWORD) {
         authenticatedUser = { username: GUEST_USERNAME, role: 'guest' };
     }
 

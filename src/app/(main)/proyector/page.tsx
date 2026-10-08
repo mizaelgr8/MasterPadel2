@@ -3,12 +3,12 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { collection, onSnapshot, query, where, getDocs } from 'firebase/firestore';
-import type { Player, Category, OngoingMatch, Round, AmericanoRound, AmericanoMatch, DailyEvent, DailyElevadorEvent, MonthlyRanking, OngoingElevador } from '@/types';
+import type { Player, Category, OngoingMatch, OngoingElevador } from '@/types';
 import { useFirebase } from '@/context/FirebaseContext';
 import { useCategory } from '@/context/CategoryContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Sword, Trophy, Star, Crown, Shield, Swords, Medal } from 'lucide-react';
+import { Loader2, Sword, Trophy, Star, Crown, Shield, Swords } from 'lucide-react';
 import Image from 'next/image';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -30,44 +30,25 @@ const ProyectorGeneralRankingColumn = ({ category, players }: { category: string
                             <TableHead className="w-12 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">#</TableHead>
                             <TableHead className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jugador</TableHead>
                             <TableHead className="w-16 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Prom</TableHead>
-                            <TableHead className="text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Logros</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {players.slice(0, 15).map((player, index) => {
-                            const ach = player.achievements || { king: 0, shield: 0, sword: 0 };
-                            const med = player.medals || { gold: 0, silver: 0, bronze: 0 };
-                            return (
-                                <TableRow key={player.id} className={cn(
-                                    "border-slate-800/50 h-20 hover:bg-slate-800/30 transition-colors",
-                                    index < 3 && "bg-yellow-500/5"
-                                )}>
-                                    <TableCell className="text-center font-black text-xl">
-                                        {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
-                                    </TableCell>
-                                    <TableCell className="font-bold text-base text-white truncate max-w-[140px]">
-                                        {player.name.toUpperCase()}
-                                    </TableCell>
-                                    <TableCell className="text-center font-black text-primary text-xl">
-                                        {player.totalGames > 0 ? (player.totalPoints / player.totalGames).toFixed(1) : '0.0'}
-                                    </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="flex flex-col gap-1 items-center justify-center">
-                                            <div className="flex items-center justify-center gap-2">
-                                                {ach.king > 0 && <span className="gold-text flex items-center text-lg font-black"><Crown className="h-6 w-6 mr-1"/>{ach.king}</span>}
-                                                {ach.shield > 0 && <span className="silver-text flex items-center text-lg font-black"><Shield className="h-6 w-6 mr-1"/>{ach.shield}</span>}
-                                                {ach.sword > 0 && <span className="bronze-text flex items-center text-lg font-black"><Swords className="h-6 w-6 mr-1"/>{ach.sword}</span>}
-                                            </div>
-                                            <div className="flex items-center justify-center gap-2">
-                                                {med.gold > 0 && <span className="gold-text text-sm font-bold opacity-90">🥇{med.gold}</span>}
-                                                {med.silver > 0 && <span className="silver-text text-sm font-bold opacity-90">🥈{med.silver}</span>}
-                                                {med.bronze > 0 && <span className="bronze-text text-sm font-bold opacity-90">🥉{med.bronze}</span>}
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
+                        {players.slice(0, 15).map((player, index) => (
+                            <TableRow key={player.id} className={cn(
+                                "border-slate-800/50 h-20 hover:bg-slate-800/30 transition-colors",
+                                index < 3 && "bg-yellow-500/5"
+                            )}>
+                                <TableCell className="text-center font-black text-xl">
+                                    {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : index + 1}
+                                </TableCell>
+                                <TableCell className="font-bold text-base text-white">
+                                    {player.name.toUpperCase()}
+                                </TableCell>
+                                <TableCell className="text-center font-black text-primary text-xl">
+                                    {player.totalGames > 0 ? (player.totalPoints / player.totalGames).toFixed(1) : '0.0'}
+                                </TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                 </Table>
             </CardContent>
@@ -106,8 +87,7 @@ const ProyectorLiveStandings = () => {
             if (isIndividual) ongoingMatch.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0 });
             else ongoingMatch.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0 });
             
-            const compRounds = ongoingMatch.rounds.filter(r => !r.isBonus);
-            compRounds.forEach(round => round.matches.forEach(match => {
+            ongoingMatch.rounds?.forEach(round => round.matches.forEach(match => {
                 if (match.score1 === null || match.score2 === null) return;
                 if (isIndividual) {
                     [match.team1.player1.id, match.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += match.score1!; if(match.score1! > match.score2!) stats[id].g++; }});
@@ -119,23 +99,13 @@ const ProyectorLiveStandings = () => {
             }));
             return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
         } else if (ongoingElevador) {
-            const isIndividual = ongoingElevador.modality === 'elevador';
             const stats: Record<string, any> = {};
-            if (isIndividual) ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0 });
-            else ongoingElevador.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0 });
-            
-            ongoingElevador.rounds.filter(r => !r.isBonus).forEach(round => round.courts.forEach(court => {
+            ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0 });
+            ongoingElevador.rounds?.forEach(round => round.courts.forEach(court => {
                 if (!court.match || court.match.score1 === null || court.match.score2 === null) return;
                 const m = court.match;
-                if (isIndividual) {
-                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; if(m.score1! > m.score2!) stats[id].g++; }});
-                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; if(m.score2! > m.score1!) stats[id].g++; }});
-                } else {
-                    const id1 = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
-                    const id2 = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
-                    if (stats[id1]) { stats[id1].points += m.score1!; if(m.score1! > m.score2!) stats[id1].g++; }
-                    if (stats[id2]) { stats[id2].points += m.score2!; if(m.score2! > m.score1!) stats[id2].g++; }
-                }
+                [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; if(m.score1! > m.score2!) stats[id].g++; }});
+                [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; if(m.score2! > m.score1!) stats[id].g++; }});
             }));
             return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
         }
@@ -150,13 +120,12 @@ const ProyectorLiveStandings = () => {
             <CardHeader className="border-b border-slate-700"><CardTitle className="text-3xl text-white flex items-center gap-3 font-headline"><Trophy className="text-yellow-400 h-8 w-8"/> Clasificación en Vivo</CardTitle></CardHeader>
             <CardContent className="p-0">
                 <Table>
-                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead><TableHead className="text-center text-xl text-slate-400">G</TableHead></TableRow></TableHeader>
+                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
                     <TableBody>{results.map((row, index) => (
                         <TableRow key={index} className="border-slate-800 h-16 text-white hover:bg-slate-800/50 transition-colors">
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
-                            <TableCell className="font-bold text-xl truncate max-w-[200px] uppercase">{row.name}</TableCell>
+                            <TableCell className="font-bold text-xl uppercase">{row.name}</TableCell>
                             <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
-                            <TableCell className="text-center text-xl font-semibold">{row.g}</TableCell>
                         </TableRow>
                     ))}</TableBody>
                 </Table>
@@ -206,37 +175,35 @@ const ProyectorOngoingMatch = () => {
             <CardContent className="py-4 overflow-y-auto max-h-[calc(100vh-250px)]">
                 <Accordion type="single" collapsible className="w-full" value={openAccordionItem} onValueChange={setOpenAccordionItem}>
                     {ongoingMatch ? (
-                        ongoingMatch.rounds.length > 0 ? (
-                            ongoingMatch.rounds.map((round, ri) => (
-                                <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
-                                    <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>Ronda {ri + 1} {round.isBonus && '(Bonus)'}</AccordionTrigger>
-                                    <AccordionContent><div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                        {round.matches.map((match, mi) => (
-                                            <div key={mi} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
-                                                <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
-                                                <div className='flex items-center gap-3'>
-                                                    <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase text-right w-full truncate'>{match.team1.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase text-right w-full truncate'>{match.team1.player2.name}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0 px-4">
-                                                        <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score1 ?? '-'}</div>
-                                                        <span className="text-primary font-black text-2xl">VS</span>
-                                                        <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score2 ?? '-'}</div>
-                                                    </div>
-                                                    <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{match.team2.player1.name}</span>
-                                                        <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{match.team2.player2.name}</span>
-                                                    </div>
+                        ongoingMatch.rounds?.map((round, ri) => (
+                            <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
+                                <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>Ronda {ri + 1} {round.isBonus && '(Bonus)'}</AccordionTrigger>
+                                <AccordionContent><div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                    {round.matches.map((match, mi) => (
+                                        <div key={mi} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
+                                            <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
+                                            <div className='flex items-center gap-3'>
+                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0'>
+                                                    <span className='text-xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player1.name}</span>
+                                                    <span className='text-xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player2.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0 px-4">
+                                                    <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score1 ?? '-'}</div>
+                                                    <span className="text-primary font-black text-2xl">VS</span>
+                                                    <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-700 rounded text-white border-2 border-primary/40">{match.score2 ?? '-'}</div>
+                                                </div>
+                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0'>
+                                                    <span className='text-xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player1.name}</span>
+                                                    <span className='text-xl font-black text-slate-200 uppercase leading-tight'>{match.team2.player2.name}</span>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div></AccordionContent>
-                                </AccordionItem>
-                            ))
-                        ) : null
+                                        </div>
+                                    ))}
+                                </div></AccordionContent>
+                            </AccordionItem>
+                        ))
                     ) : (
-                        ongoingElevador?.rounds.map((round, ri) => (
+                        ongoingElevador?.rounds?.map((round, ri) => (
                             <AccordionItem value={`item-${ri}`} key={ri} className="border-slate-700">
                                 <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>Ronda {round.roundNumber} {round.isBonus && '(Bonus)'}</AccordionTrigger>
                                 <AccordionContent><div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -244,18 +211,18 @@ const ProyectorOngoingMatch = () => {
                                         <div key={ci} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-xl border border-slate-600 shadow-2xl'>
                                             <div className="text-xl font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-2 mb-2">Cancha {court.courtNumber}</div>
                                             <div className='flex items-center gap-4'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
-                                                    <span className='text-xl font-black text-slate-200 uppercase text-right w-full truncate'>{court.match?.team1.player1.name}</span>
-                                                    <span className='text-xl font-black text-slate-200 uppercase text-right w-full truncate'>{court.match?.team1.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0'>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player1.name}</span>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{court.match?.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0 px-4">
-                                                    <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score1 ?? '-'}</div>
+                                                    <div className="w-20 h-20 flex items-center justify-center text-6xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score1 ?? '-'}</div>
                                                     <span className="text-primary font-black text-2xl">VS</span>
-                                                    <div className="w-16 h-16 flex items-center justify-center text-5xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score2 ?? '-'}</div>
+                                                    <div className="w-20 h-20 flex items-center justify-center text-6xl font-black bg-slate-900 border-2 border-primary/40 rounded-lg text-white">{court.match?.score2 ?? '-'}</div>
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
-                                                    <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player1.name}</span>
-                                                    <span className='text-xl font-black text-slate-200 uppercase w-full truncate'>{court.match?.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1 justify-center shrink-0'>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player1.name}</span>
+                                                    <span className='text-2xl font-black text-slate-200 uppercase leading-tight'>{court.match?.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -285,16 +252,17 @@ export default function ProyectorPage() {
         if (!db) return;
         setLoading(true);
         try {
-            const [playersSnap, dailySnap, elevadorSnap, monthlySnap, dailyPairsSnap] = await Promise.all([
-                getDocs(collection(db, "players")), getDocs(collection(db, "dailyEvents")), getDocs(collection(db, "dailyElevadorEvents")), getDocs(collection(db, "monthlyRankings")), getDocs(collection(db, "dailyPairEvents"))
-            ]);
+            const playersSnap = await getDocs(collection(db, "players"));
             const allPlayers = playersSnap.docs.map(d => ({ id: d.id, ...d.data() } as Player));
-            const cats: Category[] = ['5ta', '4ta', '3ra', '2da', '1ra'];
+            const cats: Category[] = ['1ra', '2da', '3ra', '4ta', '5ta'];
+            
             const finalRankings = cats.map(cat => {
-                const categoryPlayers = allPlayers.filter(p => cat === '4ta' ? (p.category === '4ta' || !p.category) : p.category === cat);
-                const stats: Record<string, any> = {};
-                categoryPlayers.forEach(p => stats[p.id] = { ...p, totalGames: 0, totalPoints: 0, medals: { gold: 0, silver: 0, bronze: 0 }, achievements: { king: 0, shield: 0, sword: 0 }});
-                const sorted = Object.values(stats).sort((a,b) => b.totalPoints - a.totalPoints);
+                const categoryPlayers = allPlayers.filter(p => {
+                    const pCat = p.category?.toLowerCase() || '';
+                    if (cat === '4ta') return !p.category || pCat === '4ta' || pCat.includes('4ta');
+                    return p.category === cat;
+                });
+                const sorted = categoryPlayers.sort((a,b) => (b.totalPoints || 0) - (a.totalPoints || 0));
                 return { category: cat, players: sorted };
             });
             setGlobalRankings(finalRankings);
