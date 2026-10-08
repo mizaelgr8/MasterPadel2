@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useEffect, useState } from 'react';
-import { collection, getDocs, doc, writeBatch, query, where, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, query, where, addDoc, onSnapshot, increment } from 'firebase/firestore';
 import type { Player, Modality, DailyResult, DailyPairResult, Pair, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -132,6 +132,20 @@ const RegistroManual = () => {
         const coll = modality === '6loco' ? 'dailyEvents' : 'dailyPairEvents';
         const newDoc = doc(collection(db, coll));
         batch.set(newDoc, { id: newDoc.id, date, name: eventName || "Registro Manual", results: sortedResults, modality, category });
+        
+        // Medal assignment
+        const medalFields = ['medals.gold', 'medals.silver', 'medals.bronze'] as const;
+        for (let i = 0; i < Math.min(sortedResults.length, 3); i++) {
+            const res = sortedResults[i];
+            const field = medalFields[i];
+            if (modality === '6loco' && res.playerId) {
+                batch.update(doc(db, 'players', res.playerId), { [field]: increment(1) });
+            } else if (modality === 'parejaFija' && res.player1 && res.player2) {
+                batch.update(doc(db, 'players', res.player1.id), { [field]: increment(1) });
+                batch.update(doc(db, 'players', res.player2.id), { [field]: increment(1) });
+            }
+        }
+
         await batch.commit();
         toast({ title: "Guardado" });
         resetState();

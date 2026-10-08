@@ -361,7 +361,7 @@ const RegistroPartida = () => {
     if (!selectedMatch || selectedMatch.modality !== 'parejaFija') return [];
     const stats: Record<string, AmericanoRankingEntry> = {};
     selectedMatch.fixedPairs.forEach(pair => {
-      stats[pair.id] = { pairId: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, team: pair, points: 0, matchesPlayed: 0, matchesWon: 0, matchesLost: 0, stonesPlayed: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0 };
+      stats[pair.id] = { pairId: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, team: pair, points: 0, matchesPlayed: 0, matchesWon: 0, matchesLost: 0, setsWon: 0, setsLost: 0, gamesWon: 0, gamesLost: 0 };
     });
     selectedMatch.americanoRounds.forEach(round => {
       round.matches.forEach(match => {
@@ -437,6 +437,11 @@ const RegistroPartida = () => {
         } else {
             const results: DailyPairResult[] = americanoRanking.map(r => ({ pairId: r.pairId, player1: r.team.player1, player2: r.team.player2, points: r.points, g: r.matchesWon, p: r.matchesLost, e: 0 }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'parejaFija', category });
+            for(let i=0; i<Math.min(results.length, 3); i++) {
+                const res = results[i];
+                const field = medalFields[i];
+                [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
+            }
         }
         await batch.commit();
         await deleteDoc(doc(db, "ongoingMatches", selectedMatch.id));
