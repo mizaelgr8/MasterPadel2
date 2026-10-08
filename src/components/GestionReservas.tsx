@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import type { Reservation, PaymentMethod } from '@/types';
 import { Calendar } from '@/components/ui/calendar';
@@ -20,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { useFirebase } from '@/context/FirebaseContext';
 import { Switch } from './ui/switch';
+import { useAuth } from '@/context/AuthContext';
 
 
 const timeToMinutes = (time: string): number => {
@@ -38,6 +40,7 @@ const timeSlots = Array.from({ length: (23 - 7) * 2 + 1 }, (_, i) => {
 
 const GestionReservas = () => {
     const { db } = useFirebase();
+    const { user } = useAuth();
     const { toast } = useToast();
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -52,6 +55,7 @@ const GestionReservas = () => {
     const [isPaid, setIsPaid] = useState<boolean>(false);
 
     const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+    const canDelete = user?.username === 'Admin';
 
     useEffect(() => {
         if (!db) return;
@@ -63,7 +67,8 @@ const GestionReservas = () => {
 
         const unsubscribe = onSnapshot(reservationsQuery, (snapshot) => {
             const newReservations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reservation));
-            setReservations(newReservations);
+            // Sort by time to ensure consistent behavior in findReservationForSlot
+            setReservations(newReservations.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time)));
             setLoading(false);
         }, (error) => {
             console.error("Error fetching reservations: ", error);
@@ -83,6 +88,15 @@ const GestionReservas = () => {
         if (!data.time || !data.courtId || !data.playerName) {
             toast({ title: "Error", description: "Por favor, completa todos los campos obligatorios.", variant: "destructive" });
             return;
+        }
+
+        // Prevent overlapping if not editing an existing one
+        if (!editingReservation?.id) {
+            const isSlotTaken = reservations.some(r => r.time === data.time && r.courtId === Number(data.courtId));
+            if (isSlotTaken) {
+                toast({ title: "Pista ocupada", description: "Ya existe una reserva en ese horario y cancha.", variant: "destructive" });
+                return;
+            }
         }
         
         const shouldRepeat = formData.get('repeat') === 'on';
@@ -138,7 +152,7 @@ const GestionReservas = () => {
     };
     
     const handleDeleteReservation = async (reservationId: string) => {
-        if (!db) return;
+        if (!db || !canDelete) return;
         try {
             await deleteDoc(doc(db, "reservations", reservationId));
             toast({ title: "Éxito", description: "Reserva eliminada." });
@@ -276,21 +290,23 @@ const GestionReservas = () => {
                                                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-white hover:bg-white/20" onClick={() => openEditDialog(reservation)}>
                                                                             <Pencil className="h-3 w-3"/>
                                                                         </Button>
-                                                                        <AlertDialog>
-                                                                            <AlertDialogTrigger asChild>
-                                                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-white hover:bg-white/20"><Trash2 className="h-3 w-3"/></Button>
-                                                                            </AlertDialogTrigger>
-                                                                            <AlertDialogContent>
-                                                                                <AlertDialogHeader>
-                                                                                    <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
-                                                                                    <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                                                                                </AlertDialogHeader>
-                                                                                <AlertDialogFooter>
-                                                                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                                                    <AlertDialogAction onClick={() => handleDeleteReservation(reservation.id)}>Confirmar</AlertDialogAction>
-                                                                                </AlertDialogFooter>
-                                                                            </AlertDialogContent>
-                                                                        </AlertDialog>
+                                                                        {canDelete && (
+                                                                            <AlertDialog>
+                                                                                <AlertDialogTrigger asChild>
+                                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white hover:bg-white/20"><Trash2 className="h-3 w-3"/></Button>
+                                                                                </AlertDialogTrigger>
+                                                                                <AlertDialogContent>
+                                                                                    <AlertDialogHeader>
+                                                                                        <AlertDialogTitle>¿Eliminar reserva?</AlertDialogTitle>
+                                                                                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                                                                                    </AlertDialogHeader>
+                                                                                    <AlertDialogFooter>
+                                                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                                                        <AlertDialogAction onClick={() => handleDeleteReservation(reservation.id)}>Confirmar</AlertDialogAction>
+                                                                                    </AlertDialogFooter>
+                                                                                </AlertDialogContent>
+                                                                            </AlertDialog>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             ) : (
