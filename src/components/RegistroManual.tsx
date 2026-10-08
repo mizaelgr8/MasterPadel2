@@ -2,8 +2,8 @@
 "use client";
 
 import { useMemo, useEffect, useState } from 'react';
-import { collection, getDocs, doc, writeBatch, getDoc, query, where, addDoc } from 'firebase/firestore';
-import type { Player, Modality, DailyResult, DailyPairResult, Pair } from '@/types';
+import { collection, getDocs, doc, writeBatch, query, where, addDoc, onSnapshot } from 'firebase/firestore';
+import type { Player, Modality, DailyResult, DailyPairResult, Pair, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,14 +13,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from './ui/alert-dialog';
-import { Users, Trophy, Sparkles, Trash2, PlusCircle, User, Info } from 'lucide-react';
+import { Users, Trophy, Sparkles, Trash2, PlusCircle, User, Info, Search } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
 import { Checkbox } from './ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 import { useCategory } from '@/context/CategoryContext';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { useFirebase } from '@/context/FirebaseContext';
+import { ScrollArea } from './ui/scroll-area';
 
 const RegistroManual = () => {
   const { db } = useFirebase();
@@ -36,33 +36,35 @@ const RegistroManual = () => {
   const [eventName, setEventName] = useState('');
   const [loading, setLoading] = useState(false);
   const [modality, setModality] = useState<Modality>('6loco');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [fixedPairs, setFixedPairs] = useState<Pair[]>([]);
   const [player1, setPlayer1] = useState<Player | null>(null);
   const [player2, setPlayer2] = useState<Player | null>(null);
+
+  const filteredPlayersList = useMemo(() => {
+    if (!searchQuery) return allPlayers;
+    return allPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allPlayers, searchQuery]);
 
   const availablePlayersForPairing = useMemo(() => {
     const pairedPlayerIds = new Set(fixedPairs.flatMap(p => [p.player1.id, p.player2.id]));
     return allPlayers.filter(p => !pairedPlayerIds.has(p.id));
   }, [allPlayers, fixedPairs]);
 
-
   useEffect(() => {
-    const fetchPlayers = async () => {
-      if (!db) return;
-      const playersCollection = collection(db, "players");
-      const snap = await getDocs(playersCollection);
-      const allList = snap.docs.map(doc => ({id: doc.id, ...doc.data()} as Player));
-      
-      let playersList = [];
-      if (category === '4ta') {
-          playersList = allList.filter(p => !p.category || p.category?.toLowerCase() === '4ta' || p.category?.toLowerCase().includes('4ta'));
-      } else {
-          playersList = allList.filter(p => p.category === category);
-      }
-      setAllPlayers(playersList.sort((a,b) => a.name.localeCompare(b.name)));
-    };
-    fetchPlayers();
+    if (!db) return;
+    const unsubPlayers = onSnapshot(collection(db, "players"), (snapshot) => {
+        const allList = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()} as Player));
+        let playersList = [];
+        if (category === '4ta') {
+            playersList = allList.filter(p => !p.category || p.category === '4ta' || p.category === 'invitado');
+        } else {
+            playersList = allList.filter(p => p.category === category);
+        }
+        setAllPlayers(playersList.sort((a,b) => a.name.localeCompare(b.name)));
+    });
+    return () => unsubPlayers();
   }, [db, category]);
   
   const resetState = () => {
@@ -72,6 +74,7 @@ const RegistroManual = () => {
     setPlayer1(null);
     setPlayer2(null);
     setEventName('');
+    setSearchQuery('');
   }
 
   const handlePlayerToggle = (player: Player) => {
@@ -128,7 +131,7 @@ const RegistroManual = () => {
         const batch = writeBatch(db);
         const coll = modality === '6loco' ? 'dailyEvents' : 'dailyPairEvents';
         const newDoc = doc(collection(db, coll));
-        batch.set(newDoc, { id: newDoc.id, date, name: eventName || "Manual", results: sortedResults, modality, category });
+        batch.set(newDoc, { id: newDoc.id, date, name: eventName || "Registro Manual", results: sortedResults, modality, category });
         await batch.commit();
         toast({ title: "Guardado" });
         resetState();
@@ -148,7 +151,45 @@ const RegistroManual = () => {
         </div>
 
         {modality === '6loco' ? (
-             <Popover><PopoverTrigger asChild><Button variant="outline" className="w-full">Seleccionar Jugadores ({selectedPlayers.length})</Button></PopoverTrigger><PopoverContent className="w-[300px] p-0"><Command><CommandInput placeholder="Buscar..." /><CommandList><CommandGroup>{allPlayers.map(player => (<CommandItem key={player.id} onSelect={() => handlePlayerToggle(player)}><Checkbox checked={selectedPlayers.some(p => p.id === player.id)} className="mr-2" />{player.name}</CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover>
+             <div className="space-y-2">
+                 <Label>Jugadores Seleccionados ({selectedPlayers.length})</Label>
+                 <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start mt-1 border-primary/20">
+                            <Users className="mr-2 h-4 w-4" /> Seleccionar Jugadores
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[320px] p-4 bg-slate-900 border-slate-700">
+                        <div className="space-y-4">
+                            <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                                <Search className="h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Buscar..." 
+                                    className="h-8 border-none bg-transparent focus-visible:ring-0 p-0 text-sm" 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <ScrollArea className="h-[300px] pr-4">
+                                <div className="space-y-2">
+                                    {filteredPlayersList.map(p => (
+                                        <div key={p.id} className="flex items-center space-x-3 p-1 hover:bg-slate-800 rounded transition-colors cursor-pointer" onClick={() => handlePlayerToggle(p)}>
+                                            <Checkbox 
+                                                id={`pm-${p.id}`} 
+                                                checked={selectedPlayers.some(sp => sp.id === p.id)}
+                                                onCheckedChange={() => handlePlayerToggle(p)}
+                                            />
+                                            <Label htmlFor={`pm-${p.id}`} className="text-sm font-normal cursor-pointer uppercase truncate flex-1">
+                                                {p.name}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+             </div>
         ) : (
             <div className="flex gap-2"><Select value={player1?.id || ''} onValueChange={id => setPlayer1(allPlayers.find(p => p.id === id) || null)}><SelectTrigger><SelectValue placeholder="J1"/></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player2?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Select value={player2?.id || ''} onValueChange={id => setPlayer2(allPlayers.find(p => p.id === id) || null)}><SelectTrigger><SelectValue placeholder="J2"/></SelectTrigger><SelectContent>{availablePlayersForPairing.filter(p => p.id !== player1?.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select><Button onClick={handleAddPair} size="icon"><PlusCircle/></Button></div>
         )}

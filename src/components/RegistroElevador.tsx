@@ -10,10 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, Info, Users, User, X } from 'lucide-react';
+import { Dices, Play, Trash2, Loader2, Sparkles, ArrowLeft, BarChart, PlusCircle, Gamepad2, Info, Users, User, X, Search } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from './ui/command';
-import { Checkbox } from './ui/checkbox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
@@ -21,6 +19,8 @@ import { cn } from '@/lib/utils';
 import { useCategory } from '@/context/CategoryContext';
 import { useFirebase } from '@/context/FirebaseContext';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { ScrollArea } from './ui/scroll-area';
+import { Checkbox } from './ui/checkbox';
 
 const TOTAL_ROUNDS = 7;
 
@@ -33,6 +33,7 @@ const RegistroElevador = () => {
     const [ongoingMatches, setOngoingMatches] = useState<OngoingElevador[]>([]);
     const [selectedMatch, setSelectedMatch] = useState<OngoingElevador | null>(null);
     const [view, setView] = useState<'loading' | 'list' | 'setup' | 'match'>('loading');
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Setup state
     const [selectedPlayers, setSelectedPlayers] = useState<Player[]>([]);
@@ -48,6 +49,11 @@ const RegistroElevador = () => {
     const [openAccordion, setOpenAccordion] = useState<string>("round-1");
     const [isSaving, setIsSaving] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    const filteredPlayersList = useMemo(() => {
+        if (!searchQuery) return allPlayers;
+        return allPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [allPlayers, searchQuery]);
 
     const availablePlayersForPairing = useMemo(() => {
         const pairedPlayerIds = new Set(fixedPairs.flatMap(p => [p.player1.id, p.player2.id]));
@@ -142,7 +148,6 @@ const RegistroElevador = () => {
                 team1 = { player1: { ...pair1.player1, court: i + 1 }, player2: { ...pair1.player2, court: i + 1 } };
                 team2 = { player1: { ...pair2.player1, court: i + 1 }, player2: { ...pair2.player2, court: i + 1 } };
                 
-                // Init stats for pairs
                 [pair1, pair2].forEach(p => {
                     initialStats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, pointsReceived: 0, pointsDifference: 0, courtHistory: [i + 1], finalCourt: i + 1 };
                 });
@@ -158,7 +163,7 @@ const RegistroElevador = () => {
 
             initialCourts.push({ 
                 courtNumber: i + 1, 
-                players: isPairs ? [] : [], // Not strictly used for rendering logic anymore
+                players: [], 
                 match: { team1: team1 as any, team2: team2 as any, score1: null, score2: null }
             });
         }
@@ -176,6 +181,7 @@ const RegistroElevador = () => {
             setSelectedMatch({ ...newMatchData, id: docRef.id }); 
             setView('match'); 
             setOpenAccordion("round-1");
+            setSearchQuery('');
         } catch (e) { toast({title: "Error"}); }
     };
 
@@ -196,7 +202,7 @@ const RegistroElevador = () => {
 
     const startNextRound = () => {
         if (!selectedMatch || !db) return;
-        const { rounds, playerStats, modality, fixedPairs, selectedPlayers, numberOfPlayers: numStr } = selectedMatch;
+        const { rounds, playerStats, modality } = selectedMatch;
         const isPairs = modality === 'elevadorParejas';
         const last = rounds[rounds.length - 1];
         if (!last.courts.every(c => c.match && c.match.score1 !== null)) return;
@@ -204,12 +210,7 @@ const RegistroElevador = () => {
         const newStats = JSON.parse(JSON.stringify(playerStats));
         last.courts.forEach(c => {
             const m = c.match!;
-            const t1Id = isPairs ? m.team1.player1.id.split('-')[0] : ''; // In pairs, we use the ID logic carefully
-            // Actually, in our current setup for stats, the key is pair.id or player.id
-            // Let's identify the entities by their position in the match object
-            
             if (isPairs) {
-                // Find pair ID by players
                 const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
                 const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
                 newStats[p1Id].pointsScored += m.score1!;
@@ -303,13 +304,12 @@ const RegistroElevador = () => {
                         player1: { id: pair!.player1.id, name: pair!.player1.name },
                         player2: { id: pair!.player2.id, name: pair!.player2.name },
                         points: r.pointsScored,
-                        g: 0, e: 0, p: 0 // Simplificado para elevador
+                        g: 0, e: 0, p: 0
                     };
                 });
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
                 
-                // Medallas para los 3 primeros pares
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const pair = results[i];
                     const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
@@ -382,8 +382,8 @@ const RegistroElevador = () => {
                                         <CardContent className="p-4">
                                             <div className='flex items-center gap-2'>
                                                 <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
-                                                    <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
-                                                    <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
+                                                    <span className='text-[12px] font-black uppercase text-right leading-tight text-slate-100'>{court.match?.team1.player1.name}</span>
+                                                    <span className='text-[12px] font-black uppercase text-right leading-tight text-slate-100'>{court.match?.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0 px-1">
                                                     <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
@@ -391,8 +391,8 @@ const RegistroElevador = () => {
                                                     <Input type="text" pattern="[0-7]*" inputMode="numeric" value={court.match?.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                 </div>
                                                 <div className='flex-1 flex flex-col items-start gap-1 min-h-[80px] justify-center overflow-hidden'>
-                                                    <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player1.name}</span>
-                                                    <span className='text-[12px] font-black uppercase leading-none text-slate-100'>{court.match?.team2.player2.name}</span>
+                                                    <span className='text-[12px] font-black uppercase leading-tight text-slate-100'>{court.match?.team2.player1.name}</span>
+                                                    <span className='text-[12px] font-black uppercase leading-tight text-slate-100'>{court.match?.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         </CardContent>
@@ -449,7 +449,7 @@ const RegistroElevador = () => {
                             <div className="space-y-2"><Label>Fecha</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
                             <div className="space-y-2">
                                 <Label>Modalidad</Label>
-                                <Select value={modality} onValueChange={(v) => setModality(v as any)}>
+                                <Select value={modality} onValueChange={(v) => { setModality(v as any); setSelectedPlayers([]); setFixedPairs([]); }}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="elevador"><User className="inline-block mr-2 h-4 w-4"/>Individual</SelectItem>
@@ -472,25 +472,47 @@ const RegistroElevador = () => {
                                         </SelectContent>
                                     </Select>
                                     <Popover>
-                                        <PopoverTrigger asChild><Button variant="outline" className="flex-1 justify-start"><Users className="mr-2 h-4 w-4" /> Seleccionar</Button></PopoverTrigger>
-                                        <PopoverContent className="w-[300px] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Buscar..." />
-                                                <CommandList>
-                                                    <CommandEmpty>No se encontró ningún jugador.</CommandEmpty>
-                                                    <CommandGroup>
-                                                        {allPlayers.map(p => (
-                                                            <CommandItem key={p.id} onSelect={() => handlePlayerToggle(p)}>
-                                                                <Checkbox checked={selectedPlayers.some(sp => sp.id === p.id)} className="mr-2" /> 
-                                                                {p.name}
-                                                            </CommandItem>
+                                        <PopoverTrigger asChild><Button variant="outline" className="flex-1 justify-start border-primary/20"><Users className="mr-2 h-4 w-4" /> Seleccionar</Button></PopoverTrigger>
+                                        <PopoverContent className="w-[320px] p-4 bg-slate-900 border-slate-700">
+                                            <div className="space-y-4">
+                                                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                                                    <Search className="h-4 w-4 text-muted-foreground" />
+                                                    <Input 
+                                                        placeholder="Buscar..." 
+                                                        className="h-8 border-none bg-transparent focus-visible:ring-0 p-0 text-sm" 
+                                                        value={searchQuery}
+                                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                                    />
+                                                </div>
+                                                <ScrollArea className="h-[300px] pr-4">
+                                                    <div className="space-y-2">
+                                                        {filteredPlayersList.map(p => (
+                                                            <div key={p.id} className="flex items-center space-x-3 p-1 hover:bg-slate-800 rounded transition-colors cursor-pointer" onClick={() => handlePlayerToggle(p)}>
+                                                                <Checkbox 
+                                                                    id={`p-${p.id}`} 
+                                                                    checked={selectedPlayers.some(sp => sp.id === p.id)}
+                                                                    onCheckedChange={() => handlePlayerToggle(p)}
+                                                                />
+                                                                <Label htmlFor={`p-${p.id}`} className="text-sm font-normal cursor-pointer uppercase truncate flex-1">
+                                                                    {p.name}
+                                                                </Label>
+                                                            </div>
                                                         ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
+                                                    </div>
+                                                </ScrollArea>
+                                            </div>
                                         </PopoverContent>
                                     </Popover>
                                 </div>
+                                {selectedPlayers.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-4 border rounded p-2">
+                                        {selectedPlayers.map(p => (
+                                            <div key={p.id} className="bg-primary/20 text-primary-foreground text-[10px] px-2 py-1 rounded uppercase font-bold border border-primary/30">
+                                                {p.name}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <div className="space-y-4">
@@ -525,9 +547,9 @@ const RegistroElevador = () => {
                             </div>
                         )}
                         
-                        <div className="flex justify-end mt-4">
-                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : fixedPairs.length !== parseInt(numberOfPairs, 10)}>
-                                <Dices className="mr-2 h-4 w-4" /> Empezar Jornada
+                        <div className="flex justify-end mt-4 border-t pt-4">
+                            <Button onClick={startElevador} disabled={modality === 'elevador' ? selectedPlayers.length !== parseInt(numberOfPlayers, 10) : fixedPairs.length !== parseInt(numberOfPairs, 10)} className="w-full md:w-auto">
+                                <Dices className="mr-2 h-4 w-4" /> Empezar Jornada de Elevador
                             </Button>
                         </div>
                     </>
