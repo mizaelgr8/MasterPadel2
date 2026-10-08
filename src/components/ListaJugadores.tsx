@@ -44,6 +44,7 @@ const ListaJugadores = () => {
         const categoryPlayers = allPlayersList.filter(p => {
             const pCat = (p.category || '').toLowerCase().trim();
             const targetCat = category.toLowerCase().trim();
+            // Filtro flexible para 4ta
             if (targetCat === '4ta') {
                 return !p.category || pCat.includes('4') || pCat === '' || pCat === 'invitado';
             }
@@ -215,26 +216,29 @@ const ListaJugadores = () => {
             </div>
             { user?.role === 'admin' &&
                 <div className="flex gap-2 w-full md:w-auto">
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="flex-1 md:flex-none" disabled={isRecalculating}>
-                                <LifeBuoy className={cn("mr-2 h-4 w-4 text-primary", isRecalculating && 'animate-spin')} />
-                                Recuperar y Recalcular
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>¿Deseas reconstruir la base de jugadores?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Este proceso buscará en todo el historial a jugadores que hayan sido eliminados y los volverá a dar de alta con sus puntos y trofeos originales.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleRecalculateStats}>Confirmar Recuperación</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {/* Botón de recuperación solo para Admin */}
+                    {user?.username === 'Admin' && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="flex-1 md:flex-none" disabled={isRecalculating}>
+                                    <LifeBuoy className={cn("mr-2 h-4 w-4 text-primary", isRecalculating && 'animate-spin')} />
+                                    Recuperar y Recalcular
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Deseas reconstruir la base de jugadores?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Este proceso buscará en todo el historial a jugadores que hayan sido eliminados y los volverá a dar de alta con sus puntos y trofeos originales.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleRecalculateStats}>Confirmar Recuperación</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                     <Button onClick={() => { setEditingPlayer(null); reset({name: "", category: category}); setIsDialogOpen(true); }} size="sm" className="flex-1 md:flex-none">
                         <UserPlus className="mr-2 h-4 w-4" /> Añadir
                     </Button>

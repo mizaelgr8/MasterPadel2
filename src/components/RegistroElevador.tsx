@@ -132,6 +132,7 @@ const RegistroElevador = () => {
         const newRounds = JSON.parse(JSON.stringify(selectedMatch.rounds));
         const match = newRounds[ri].courts[ci].match;
         if (!match) return;
+        // Lógica de suma a 7 puntos
         if (value === '') { match.score1 = null; match.score2 = null; }
         else if (!isNaN(score) && score >= 0 && score <= 7) {
             if (team === 'team1') { match.score1 = score; match.score2 = 7 - score; }
@@ -245,6 +246,7 @@ const RegistroElevador = () => {
                                         <div className="bg-primary/10 p-2 text-[10px] font-black text-primary uppercase text-center border-b border-primary/20">Cancha {court.courtNumber}</div>
                                         <CardContent className="p-4">
                                             <div className='flex items-center gap-2'>
+                                                {/* Diseño vertical para asegurar 4 jugadores visibles */}
                                                 <div className='flex-1 flex flex-col items-end gap-1 min-h-[80px] justify-center overflow-hidden'>
                                                     <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player1.name}</span>
                                                     <span className='text-[12px] font-black uppercase text-right leading-none text-slate-100'>{court.match?.team1.player2.name}</span>
@@ -302,7 +304,7 @@ const RegistroElevador = () => {
         <Card>
             <CardHeader>
                 <CardTitle><span className="text-yellow-400">Configurar Elevador</span></CardTitle>
-                <CardDescription>{category} Cat.</CardDescription>
+                <CardDescription>{category} Cat. (Suma a 7 puntos)</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {user?.role === 'guest' ? (
