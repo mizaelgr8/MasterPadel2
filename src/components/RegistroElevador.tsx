@@ -416,7 +416,8 @@ const RegistroElevador = () => {
                 batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevador', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const pRef = doc(db, 'players', results[i].playerId);
-                    batch.update(pRef, { [medalFields[i]]: increment(1) });
+                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                    batch.update(pRef, { [field]: increment(1) });
                 }
             } else {
                 const results: DailyPairResult[] = sortedRanking.map(p => ({ pairId: p.pairId, player1: p.player1, player2: p.player2, points: p.pointsScored, g: p.gamesWon, p: p.gamesLost, e: 0 }));
@@ -424,7 +425,7 @@ const RegistroElevador = () => {
                 batch.set(newDoc, { id: newDoc.id, date, name: finalName, results, modality: 'elevadorParejas', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
                     const res = results[i];
-                    const field = medalFields[i];
+                    const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
                     [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
                 }
             }
@@ -470,18 +471,18 @@ const RegistroElevador = () => {
                                     <CardContent className="p-3">
                                         {court.match ? (
                                              <div className='flex items-center gap-2'>
-                                                <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden shrink-0'>
-                                                    <span className='text-[11px] font-black text-white uppercase text-right leading-tight w-full truncate'>{court.match.team1.player1.name}</span>
-                                                    <span className='text-[11px] font-black text-white uppercase text-right leading-tight w-full truncate'>{court.match.team1.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-end gap-1 shrink-0'>
+                                                    <span className='text-[11px] font-black text-white uppercase text-right leading-tight'>{court.match.team1.player1.name}</span>
+                                                    <span className='text-[11px] font-black text-white uppercase text-right leading-tight'>{court.match.team1.player2.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 shrink-0 px-1">
                                                     <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match.score1 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team1', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                     <span className='font-black text-primary'>:</span>
                                                     <Input type="text" pattern="[0-6]*" inputMode="numeric" value={court.match.score2 ?? ''} onChange={e => handleScoreChange(ri, ci, 'team2', e.target.value)} className="w-10 h-10 text-center text-xl font-black p-0 bg-slate-800 border-primary/30" disabled={user?.role === 'guest'} />
                                                 </div>
-                                                <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden shrink-0'>
-                                                    <span className='text-[11px] font-black text-white uppercase leading-tight w-full truncate'>{court.match.team2.player1.name}</span>
-                                                    <span className='text-[11px] font-black text-white uppercase leading-tight w-full truncate'>{court.match.team2.player2.name}</span>
+                                                <div className='flex-1 flex flex-col items-start gap-1 shrink-0'>
+                                                    <span className='text-[11px] font-black text-white uppercase leading-tight'>{court.match.team2.player1.name}</span>
+                                                    <span className='text-[11px] font-black text-white uppercase leading-tight'>{court.match.team2.player2.name}</span>
                                                 </div>
                                             </div>
                                         ) : <div className="flex items-center justify-center p-4 text-destructive gap-2 text-xs"><Info className='h-3 w-3'/> Error</div>}

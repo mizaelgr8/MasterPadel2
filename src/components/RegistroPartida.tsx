@@ -417,14 +417,15 @@ const RegistroPartida = () => {
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6loco', category });
             for(let i=0; i<Math.min(results.length, 3); i++) {
                 const pRef = doc(db, 'players', results[i].playerId);
-                batch.update(pRef, { [medalFields[i]]: increment(1) });
+                const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
+                batch.update(pRef, { [field]: increment(1) });
             }
         } else if (selectedMatch.modality === '6locoParejas') {
             const results: DailyPairResult[] = calculatedResults.map(r => ({ pairId: r.pairId, player1: r.player1, player2: r.player2, points: r.points, g: r.g, p: r.p, e: r.e }));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: '6locoParejas', category });
             for(let i=0; i<Math.min(results.length, 3); i++) {
                 const res = results[i];
-                const field = medalFields[i];
+                const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';
                 [res.player1.id, res.player2.id].forEach(pid => batch.update(doc(db, 'players', pid), { [field]: increment(1) }));
             }
         } else {
@@ -472,18 +473,18 @@ const RegistroPartida = () => {
                     <div key={mi} className="space-y-1">
                       <div className="text-[10px] font-black text-blue-500 uppercase px-1">Cancha {m.courtNumber || mi + 1}</div>
                       <div className='flex items-center gap-2 p-2 bg-muted rounded-md'>
-                        <div className='flex-1 flex flex-col items-end gap-1 overflow-hidden'>
-                            <span className='text-[10px] font-black uppercase text-right w-full truncate'>{m.team1.player1.name}</span>
-                            <span className='text-[10px] font-black uppercase text-right w-full truncate'>{m.team1.player2.name}</span>
+                        <div className='flex-1 flex flex-col items-end gap-1 shrink-0'>
+                            <span className='text-[10px] font-black uppercase text-right leading-tight'>{m.team1.player1.name}</span>
+                            <span className='text-[10px] font-black uppercase text-right leading-tight'>{m.team1.player2.name}</span>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <Input type="text" pattern="[0-6]*" inputMode="numeric" value={m.score1 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team1', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" disabled={user?.role === 'guest'} />
                           <span className="font-bold text-primary">-</span>
                           <Input type="text" pattern="[0-6]*" inputMode="numeric" value={m.score2 ?? ''} onChange={e => handleScoreChange(ri, mi, 'team2', e.target.value)} className="w-9 h-8 text-center p-0 text-sm font-black" disabled={user?.role === 'guest'} />
                         </div>
-                        <div className='flex-1 flex flex-col items-start gap-1 overflow-hidden'>
-                            <span className='text-[10px] font-black uppercase w-full truncate'>{m.team2.player1.name}</span>
-                            <span className='text-[10px] font-black uppercase w-full truncate'>{m.team2.player2.name}</span>
+                        <div className='flex-1 flex flex-col items-start gap-1 shrink-0'>
+                            <span className='text-[10px] font-black uppercase leading-tight'>{m.team2.player1.name}</span>
+                            <span className='text-[10px] font-black uppercase leading-tight'>{m.team2.player2.name}</span>
                         </div>
                       </div>
                     </div>
