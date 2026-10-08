@@ -194,7 +194,6 @@ const RegistroElevador = () => {
             const newDoc = doc(collection(db, "dailyElevadorEvents"));
             batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
             
-            // Asignación de medallas (Corregido)
             for (let i = 0; i < Math.min(results.length, 3); i++) {
                 const pRef = doc(db, 'players', results[i].playerId);
                 const field = i === 0 ? 'medals.gold' : i === 1 ? 'medals.silver' : 'medals.bronze';

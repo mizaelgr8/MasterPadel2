@@ -17,6 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useCategory } from "@/context/CategoryContext";
 import { useFirebase } from "@/context/FirebaseContext";
+import { cn } from "@/lib/utils";
 
 type PlayerFormData = { name: string; category: Category };
 
@@ -40,7 +41,6 @@ const ListaJugadores = () => {
     const unsubscribe = onSnapshot(playersCollection, (snapshot) => {
         const allPlayersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Player));
         
-        // Filtro inteligente para 4ta (más flexible para recuperar visualmente)
         const categoryPlayers = allPlayersList.filter(p => {
             const pCat = (p.category || '').toLowerCase().trim();
             const targetCat = category.toLowerCase().trim();
@@ -109,7 +109,6 @@ const ListaJugadores = () => {
         const existingPlayerIds = new Set(playersSnapshot.docs.map(d => d.id));
         const playerStats: Record<string, any> = {};
 
-        // 1. Inicializar con jugadores existentes
         playersSnapshot.forEach(playerDoc => {
             const data = playerDoc.data();
             playerStats[playerDoc.id] = {
@@ -123,14 +122,12 @@ const ListaJugadores = () => {
             };
         });
 
-        // 2. Escanear todo el historial para RECUPERAR jugadores borrados
         const [dailySnap, elevadorSnap, tournamentsSnap] = await Promise.all([
             getDocs(collection(db, 'dailyEvents')),
             getDocs(collection(db, 'dailyElevadorEvents')),
             getDocs(collection(db, 'tournaments'))
         ]);
 
-        // Procesar Eventos Individuales
         dailySnap.forEach(d => {
             const data = d.data() as DailyEvent;
             data.results.forEach((res, i) => {
@@ -147,7 +144,6 @@ const ListaJugadores = () => {
             });
         });
 
-        // Procesar Elevadores
         elevadorSnap.forEach(d => {
             const data = d.data() as DailyElevadorEvent;
             data.results.forEach((res, i) => {
@@ -164,7 +160,6 @@ const ListaJugadores = () => {
             });
         });
 
-        // Procesar Torneos (Trofeos)
         tournamentsSnap.forEach(d => {
             const data = d.data() as CompletedTournament;
             data.standings.forEach((p, i) => {
@@ -182,7 +177,6 @@ const ListaJugadores = () => {
             });
         });
 
-        // 3. Guardar cambios (actualizar existentes y RECREAR eliminados)
         for (const pid in playerStats) {
             const s = playerStats[pid];
             const dataToSave = {
