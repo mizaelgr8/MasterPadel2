@@ -96,7 +96,7 @@ const Historial = () => {
         setDailyPairEvents(pairDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => {
-                // Prioridad Elevador: Victorias -> Cancha -> Puntos
+                // Prioridad Elevador: Victorias -> Cancha Final -> Puntos
                 if (e.modality === 'elevadorParejas') {
                     if ((b.g || 0) !== (a.g || 0)) return (b.g || 0) - (a.g || 0); 
                     const cA = a.finalCourt || 99;
