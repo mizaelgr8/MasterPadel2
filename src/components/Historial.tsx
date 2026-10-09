@@ -269,7 +269,7 @@ const Historial = () => {
                                     <TableHead>Pareja</TableHead>
                                     <TableHead className="text-center">G/E/P</TableHead>
                                     <TableHead className="text-center">Puntos</TableHead>
-                                    {event.modality === 'elevadorParejas' && <TableHead className="text-center">Cancha Final</TableHead>}
+                                    <TableHead className="text-center">Cancha Final</TableHead>
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -279,9 +279,7 @@ const Historial = () => {
                                     <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
                                     <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
                                     <TableCell className="text-center font-bold text-blue-400">{pair.points}</TableCell>
-                                    {event.modality === 'elevadorParejas' && (
-                                        <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt || '-'}</TableCell>
-                                    )}
+                                    <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt || '-'}</TableCell>
                                     </TableRow>
                                 ))}
                                 </TableBody>

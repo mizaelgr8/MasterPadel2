@@ -143,7 +143,9 @@ const ProyectorLiveStandings = () => {
             // Ordenar por Victorias -> Cancha Final -> Puntos
             return Object.values(stats).sort((a: any, b: any) => {
                 if (b.g !== a.g) return b.g - a.g;
-                if (a.court !== b.court) return a.court - b.court;
+                const cA = a.court || 99;
+                const cB = b.court || 99;
+                if (cA !== cB) return cA - cB;
                 return b.points - a.points;
             });
         }
