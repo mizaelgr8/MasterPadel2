@@ -298,7 +298,57 @@ const RegistroElevador = () => {
 
     const sortedRanking = useMemo(() => {
         if (!selectedMatch) return [];
-        return Object.values(selectedMatch.playerStats).sort((a,b) => {
+        
+        const isPairs = selectedMatch.modality === 'elevadorParejas';
+        const stats: Record<string, any> = {};
+
+        if (isPairs) {
+            selectedMatch.fixedPairs.forEach(p => stats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 1 });
+        } else {
+            selectedMatch.selectedPlayers.forEach(p => stats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 1 });
+        }
+
+        selectedMatch.rounds.forEach(round => {
+            round.courts.forEach(court => {
+                const m = court.match;
+                if (!m || m.score1 === null || m.score2 === null) return;
+                const t1Wins = m.score1! > m.score2!;
+                
+                if (isPairs) {
+                    const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
+                    const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
+                    if (stats[p1Id]) {
+                        stats[p1Id].pointsScored += m.score1!;
+                        stats[p1Id].finalCourt = court.courtNumber;
+                        if (t1Wins) stats[p1Id].gamesWon++; else stats[p1Id].gamesLost++;
+                    }
+                    if (stats[p2Id]) {
+                        stats[p2Id].pointsScored += m.score2!;
+                        stats[p2Id].finalCourt = court.courtNumber;
+                        if (!t1Wins) stats[p2Id].gamesWon++; else stats[p2Id].gamesLost++;
+                    }
+                } else {
+                    const t1Ids = [m.team1.player1.id, m.team1.player2.id];
+                    const t2Ids = [m.team2.player1.id, m.team2.player2.id];
+                    t1Ids.forEach(id => {
+                        if (stats[id]) {
+                            stats[id].pointsScored += m.score1!;
+                            stats[id].finalCourt = court.courtNumber;
+                            if (t1Wins) stats[id].gamesWon++; else stats[id].gamesLost++;
+                        }
+                    });
+                    t2Ids.forEach(id => {
+                        if (stats[id]) {
+                            stats[id].pointsScored += m.score2!;
+                            stats[id].finalCourt = court.courtNumber;
+                            if (!t1Wins) stats[id].gamesWon++; else stats[id].gamesLost++;
+                        }
+                    });
+                }
+            });
+        });
+
+        return Object.values(stats).sort((a: any, b: any) => {
             if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
             if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt;
             return b.pointsScored - a.pointsScored;
@@ -335,7 +385,7 @@ const RegistroElevador = () => {
                 }
             } else {
                 const results: DailyElevadorResult[] = sortedRanking.map(r => ({ 
-                    playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: r.pointsReceived, pointsDifference: r.pointsScored - r.pointsReceived, finalCourt: r.finalCourt 
+                    playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: 0, pointsDifference: r.pointsScored, finalCourt: r.finalCourt 
                 }));
                 const newDoc = doc(collection(db, "dailyElevadorEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
