@@ -111,18 +111,25 @@ const ProyectorLiveStandings = () => {
             ongoingElevador.rounds?.forEach(round => round.courts.forEach(court => {
                 if (!court.match || court.match.score1 === null || court.match.score2 === null) return;
                 const m = court.match;
+                const t1Wins = m.score1! > m.score2!;
                 
                 if (isPairs) {
                     const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
                     const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
-                    if (stats[p1Id]) { stats[p1Id].points += m.score1!; stats[p1Id].court = court.courtNumber; }
-                    if (stats[p2Id]) { stats[p2Id].points += m.score2!; stats[p2Id].court = court.courtNumber; }
+                    if (stats[p1Id]) { stats[p1Id].points += m.score1!; stats[p1Id].court = court.courtNumber; if(t1Wins) stats[p1Id].g++; }
+                    if (stats[p2Id]) { stats[p2Id].points += m.score2!; stats[p2Id].court = court.courtNumber; if(!t1Wins) stats[p2Id].g++; }
                 } else {
-                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; stats[id].court = court.courtNumber; }});
-                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; stats[id].court = court.courtNumber; }});
+                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score1!; stats[id].court = court.courtNumber; if(t1Wins) stats[id].g++; }});
+                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += m.score2!; stats[id].court = court.courtNumber; if(!t1Wins) stats[id].g++; }});
                 }
             }));
-            return Object.values(stats).sort((a, b) => (a.court - b.court) || (b.points - a.points));
+            
+            // Criterio solicitado: 1. Victorias (g), 2. Cancha (court asc), 3. Puntos (points desc)
+            return Object.values(stats).sort((a, b) => {
+                if (b.g !== a.g) return b.g - a.g;
+                if (a.court !== b.court) return a.court - b.court;
+                return b.points - a.points;
+            });
         }
         return [];
     }, [ongoingMatch, ongoingElevador]);
@@ -135,11 +142,12 @@ const ProyectorLiveStandings = () => {
             <CardHeader className="border-b border-slate-700"><CardTitle className="text-3xl text-white flex items-center gap-3 font-headline"><Trophy className="text-yellow-400 h-8 w-8"/> Clasificación en Vivo</CardTitle></CardHeader>
             <CardContent className="p-0">
                 <Table>
-                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
+                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">G</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
                     <TableBody>{results.map((row, index) => (
                         <TableRow key={index} className="border-slate-800 h-16 text-white hover:bg-slate-800/50 transition-colors">
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
                             <TableCell className="font-bold text-xl uppercase truncate max-w-[400px]">{row.name}</TableCell>
+                            <TableCell className="text-center font-bold text-slate-400 text-2xl">{row.g}</TableCell>
                             <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                         </TableRow>
                     ))}</TableBody>

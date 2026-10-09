@@ -102,9 +102,8 @@ const Historial = () => {
             ...e,
             results: [...e.results].sort((a, b) => {
                 if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-                if (b.pointsDifference !== a.pointsDifference) return b.pointsDifference - a.pointsDifference;
-                if (b.pointsScored !== a.pointsScored) return b.pointsScored - a.pointsScored;
-                return a.finalCourt - b.finalCourt;
+                if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt;
+                return b.pointsScored - a.pointsScored;
             })
         })));
         
@@ -249,7 +248,7 @@ const Historial = () => {
                             <CardTitle className="text-xl flex items-center gap-2">
                                 <Users className="h-5 w-5 text-blue-400"/> {event.name || "Evento de Parejas"}
                             </CardTitle>
-                            <CardDescription>Modalidad: {event.modality === '6locoParejas' ? '6 Loco Parejas' : 'Pareja Fija / Liga'}</CardDescription>
+                            <CardDescription>Modalidad: {event.modality === '6locoParejas' ? '6 Loco Parejas' : event.modality === 'elevadorParejas' ? 'Elevador Parejas' : 'Liga'}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -290,8 +289,7 @@ const Historial = () => {
                                     <TableRow>
                                         <TableHead>#</TableHead>
                                         <TableHead>Jugador</TableHead>
-                                        <TableHead className="text-center">G</TableHead>
-                                        <TableHead className="text-center">P</TableHead>
+                                        <TableHead className="text-center">G/P</TableHead>
                                         <TableHead className="text-center">Pts.</TableHead>
                                         <TableHead className="text-center">Cancha Final</TableHead>
                                     </TableRow>
@@ -301,8 +299,7 @@ const Historial = () => {
                                         <TableRow key={p.playerId}>
                                             <TableCell className="font-bold flex items-center gap-2">{index + 1} {getMedal(index)}</TableCell>
                                             <TableCell>{p.name}</TableCell>
-                                            <TableCell className="text-center">{p.gamesWon}</TableCell>
-                                            <TableCell className="text-center">{p.gamesLost}</TableCell>
+                                            <TableCell className="text-center">{p.gamesWon}/{p.gamesLost}</TableCell>
                                             <TableCell className="text-center font-bold text-orange-400">{p.pointsScored}</TableCell>
                                             <TableCell className="text-center">{p.finalCourt}</TableCell>
                                         </TableRow>

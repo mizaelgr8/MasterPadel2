@@ -210,6 +210,8 @@ const RegistroElevador = () => {
         const newStats = JSON.parse(JSON.stringify(playerStats));
         last.courts.forEach(c => {
             const m = c.match!;
+            const t1Wins = m.score1! > m.score2!;
+            
             if (isPairs) {
                 const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
                 const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
@@ -217,9 +219,20 @@ const RegistroElevador = () => {
                 newStats[p1Id].pointsReceived += m.score2!;
                 newStats[p2Id].pointsScored += m.score2!;
                 newStats[p2Id].pointsReceived += m.score1!;
+                
+                if (t1Wins) { newStats[p1Id].gamesWon++; newStats[p2Id].gamesLost++; }
+                else { newStats[p2Id].gamesWon++; newStats[p1Id].gamesLost++; }
             } else {
-                [m.team1.player1, m.team1.player2].forEach(p => { newStats[p.id].pointsScored += m.score1!; newStats[p.id].pointsReceived += m.score2!; });
-                [m.team2.player1, m.team2.player2].forEach(p => { newStats[p.id].pointsScored += m.score2!; newStats[p.id].pointsReceived += m.score1!; });
+                [m.team1.player1, m.team1.player2].forEach(p => { 
+                    newStats[p.id].pointsScored += m.score1!; 
+                    newStats[p.id].pointsReceived += m.score2!; 
+                    if (t1Wins) newStats[p.id].gamesWon++; else newStats[p.id].gamesLost++;
+                });
+                [m.team2.player1, m.team2.player2].forEach(p => { 
+                    newStats[p.id].pointsScored += m.score2!; 
+                    newStats[p.id].pointsReceived += m.score1!; 
+                    if (!t1Wins) newStats[p.id].gamesWon++; else newStats[p.id].gamesLost++;
+                });
             }
         });
 
@@ -285,7 +298,11 @@ const RegistroElevador = () => {
 
     const sortedRanking = useMemo(() => {
         if (!selectedMatch) return [];
-        return Object.values(selectedMatch.playerStats).sort((a,b) => (a.finalCourt - b.finalCourt) || (b.pointsScored - a.pointsScored));
+        return Object.values(selectedMatch.playerStats).sort((a,b) => {
+            if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
+            if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt;
+            return b.pointsScored - a.pointsScored;
+        });
     }, [selectedMatch]);
 
     const saveEvent = async () => {
@@ -304,7 +321,7 @@ const RegistroElevador = () => {
                         player1: { id: pair!.player1.id, name: pair!.player1.name },
                         player2: { id: pair!.player2.id, name: pair!.player2.name },
                         points: r.pointsScored,
-                        g: 0, e: 0, p: 0
+                        g: r.gamesWon, e: 0, p: r.gamesLost
                     };
                 });
                 const newDoc = doc(collection(db, "dailyPairEvents"));
@@ -412,12 +429,13 @@ const RegistroElevador = () => {
                 <CardHeader><CardTitle className='text-lg'>Clasificación en Vivo</CardTitle></CardHeader>
                 <CardContent>
                     <Table>
-                        <TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>{selectedMatch.modality === 'elevadorParejas' ? 'Pareja' : 'Nombre'}</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader>
+                        <TableHeader><TableRow><TableHead className='w-8'>#</TableHead><TableHead>{selectedMatch.modality === 'elevadorParejas' ? 'Pareja' : 'Nombre'}</TableHead><TableHead className="text-center">G/P</TableHead><TableHead className="text-center">Cancha</TableHead><TableHead className="text-center">Pts</TableHead></TableRow></TableHeader>
                         <TableBody>
                             {sortedRanking.map((p, i) => (
                                 <TableRow key={i} className={cn("h-10", i<3 && 'bg-primary/5 font-bold')}>
                                     <TableCell>{i+1}</TableCell>
                                     <TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell>
+                                    <TableCell className="text-center text-xs">{p.gamesWon}/{p.gamesLost}</TableCell>
                                     <TableCell className="text-center text-xs">{p.finalCourt}</TableCell>
                                     <TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell>
                                 </TableRow>
