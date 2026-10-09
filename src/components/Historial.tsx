@@ -95,7 +95,15 @@ const Historial = () => {
 
         setDailyPairEvents(pairDocs.map(e => ({
             ...e,
-            results: [...e.results].sort((a, b) => b.points - a.points)
+            results: [...e.results].sort((a, b) => {
+                if (e.modality === 'elevadorParejas') {
+                    if (b.g !== a.g) return b.g - a.g;
+                    const cA = a.finalCourt || 99;
+                    const cB = b.finalCourt || 99;
+                    if (cA !== cB) return cA - cB;
+                }
+                return b.points - a.points;
+            })
         })));
 
         setDailyElevadorEvents(elevadorDocs.map(e => ({

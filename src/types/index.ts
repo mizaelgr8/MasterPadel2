@@ -52,6 +52,7 @@ export interface DailyPairResult {
     g: number;
     e: number;
     p: number;
+    finalCourt?: number; // Añadido para rastrear posición en Elevador
 }
 
 export interface DailyPairEvent {

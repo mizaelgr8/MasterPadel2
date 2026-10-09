@@ -299,7 +299,7 @@ const RegistroElevador = () => {
             if (isPairs) {
                 const results: DailyPairResult[] = sortedRanking.map(r => {
                     const pair = selectedMatch.fixedPairs.find(p => p.id === r.playerId);
-                    return { pairId: r.playerId, name: r.name, player1: { id: pair!.player1.id, name: pair!.player1.name }, player2: { id: pair!.player2.id, name: pair!.player2.name }, points: r.pointsScored, g: r.gamesWon, e: 0, p: r.gamesLost };
+                    return { pairId: r.playerId, name: r.name, player1: { id: pair!.player1.id, name: pair!.player1.name }, player2: { id: pair!.player2.id, name: pair!.player2.name }, points: r.pointsScored, g: r.gamesWon, e: 0, p: r.gamesLost, finalCourt: r.finalCourt };
                 });
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
