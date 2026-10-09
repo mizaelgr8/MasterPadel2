@@ -138,7 +138,7 @@ const ProyectorLiveStandings = () => {
             
             return Object.values(stats).sort((a, b) => {
                 if (b.g !== a.g) return b.g - a.g;
-                if (a.court !== b.court) return a.court - b.court;
+                if (a.court !== b.court) return a.court - b.court; // Cancha 1 es mejor que Cancha 2
                 return b.points - a.points;
             });
         }

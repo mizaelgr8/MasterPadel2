@@ -83,12 +83,13 @@ const Historial = () => {
         };
 
         const [individualDocs, pairDocs, elevadorDocs] = await Promise.all([
-            fetchByDateAndCategory<DailyEvent>("dailyEvents"),
+            fetchByDateAndCategory<DailyPairEvent>("dailyEvents"), // Ajuste de tipo genérico temporal si fuera necesario
             fetchByDateAndCategory<DailyPairEvent>("dailyPairEvents"),
             fetchByDateAndCategory<DailyElevadorEvent>("dailyElevadorEvents")
         ]);
 
-        setDailyIndividualEvents(individualDocs.map(e => ({
+        // Fix para Daily Individual (6 Loco)
+        setDailyIndividualEvents((individualDocs as any[]).map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => b.points - a.points)
         })));
@@ -96,14 +97,14 @@ const Historial = () => {
         setDailyPairEvents(pairDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => {
-                // LÓGICA CRÍTICA DE CLASIFICACIÓN PARA ELEVADOR PAREJAS
+                // LÓGICA DE ORO PARA ELEVADOR PAREJAS (Prioridad: Victorias > Cancha > Puntos)
                 if (e.modality === 'elevadorParejas') {
-                    if (b.g !== a.g) return b.g - a.g; // 1º Victorias
+                    if (b.g !== a.g) return b.g - a.g; 
                     const cA = a.finalCourt || 99;
                     const cB = b.finalCourt || 99;
-                    if (cA !== cB) return cA - cB; // 2º Cancha Final (menor es mejor)
+                    if (cA !== cB) return cA - cB; // Menor número de cancha es mejor
                 }
-                return b.points - a.points; // 3º Puntos
+                return b.points - a.points; 
             })
         })));
 
@@ -278,7 +279,7 @@ const Historial = () => {
                                     <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
                                     <TableCell className="text-center font-bold text-blue-400">{pair.points}</TableCell>
                                     {event.modality === 'elevadorParejas' && (
-                                        <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt}</TableCell>
+                                        <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt || '-'}</TableCell>
                                     )}
                                     </TableRow>
                                 ))}

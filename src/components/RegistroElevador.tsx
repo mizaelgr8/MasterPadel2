@@ -286,7 +286,7 @@ const RegistroElevador = () => {
 
         return Object.values(stats).sort((a: any, b: any) => {
             if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-            if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt;
+            if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt; // Cancha 1 > Cancha 2
             return b.pointsScored - a.pointsScored;
         });
     }, [selectedMatch]);
