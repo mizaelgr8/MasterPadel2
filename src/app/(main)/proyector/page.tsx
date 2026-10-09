@@ -98,7 +98,7 @@ const ProyectorLiveStandings = () => {
                     if (stats[match.team2.id]) { stats[match.team2.id].points += match.score2!; if(!t1W) stats[match.team2.id].g++; else stats[match.team2.id].p++; }
                 }
             }));
-            return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
+            return Object.values(stats).sort((a: any, b: any) => b.points - a.points || b.g - a.g);
         } else if (ongoingElevador) {
             const isPairs = ongoingElevador.modality === 'elevadorParejas';
             const nCourts = ongoingElevador.rounds[0]?.courts.length || 0;
@@ -123,9 +123,6 @@ const ProyectorLiveStandings = () => {
             }
 
             ongoingElevador.rounds.forEach(round => {
-                const hasScores = round.courts.some(c => c.match && c.match.score1 !== null);
-                if (!hasScores) return;
-
                 round.courts.forEach(court => {
                     const m = court.match; if (!m || m.score1 === null || m.score2 === null) return;
                     const t1W = m.score1! > m.score2!;
@@ -163,8 +160,8 @@ const ProyectorLiveStandings = () => {
             <CardHeader className="border-b border-slate-700"><CardTitle className="text-3xl text-white flex items-center gap-3 font-headline"><Trophy className="text-yellow-400 h-8 w-8"/> Clasificación en Vivo</CardTitle></CardHeader>
             <CardContent className="p-0">
                 <Table>
-                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">G</TableHead><TableHead className="text-center text-xl text-slate-400">P</TableHead><TableHead className="text-center text-xl text-slate-400">Cancha</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
-                    <TableBody>{results.map((row: any, index) => (
+                    <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">G</TableHead><TableHead className="text-center text-xl text-slate-400">P</TableHead><TableHead className="text-center text-xl text-slate-400">Pista</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
+                    <TableBody>{results.map((row: any, index: number) => (
                         <TableRow key={index} className="border-slate-800 h-16 text-white hover:bg-slate-800/50 transition-colors">
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
                             <TableCell className="font-bold text-xl uppercase truncate max-w-[400px]">{row.name}</TableCell>
@@ -179,4 +176,75 @@ const ProyectorLiveStandings = () => {
         </Card>
     );
 };
-// ... resto del archivo proyector/page.tsx igual
+
+export default function ProyectorPage() {
+    const { db } = useFirebase();
+    const [playersByCat, setPlayersByCat] = useState<Record<string, any[]>>({});
+    const [view, setView] = useState<'standings' | 'ranking' | 'publicidad'>('standings');
+    const cats: Category[] = ['1ra', '2da', '3ra', '4ta', '5ta'];
+
+    useEffect(() => {
+        if (!db) return;
+        const unsub = onSnapshot(collection(db, "players"), (snap) => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            const grouped: any = {};
+            cats.forEach(c => {
+                grouped[c] = list.filter((p: any) => {
+                    const pCat = (p.category || '').toLowerCase();
+                    if (c === '4ta') return pCat.includes('4') || pCat === '' || !p.category;
+                    return pCat === c.toLowerCase();
+                }).sort((a: any, b: any) => {
+                    const avgA = a.totalGames > 0 ? a.totalPoints / a.totalGames : 0;
+                    const avgB = b.totalGames > 0 ? b.totalPoints / b.totalGames : 0;
+                    return avgB - avgA;
+                });
+            });
+            setPlayersByCat(grouped);
+        });
+        return () => unsub();
+    }, [db]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setView(v => v === 'standings' ? 'ranking' : v === 'ranking' ? 'publicidad' : 'standings');
+        }, 15000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-slate-950 p-6 flex flex-col gap-6">
+            <header className="flex justify-between items-center bg-slate-900/80 p-6 rounded-2xl border border-slate-800 shadow-2xl">
+                <div className="flex items-center gap-6">
+                    <Image src="https://i.postimg.cc/jd36nffT/Master-padel-(1).png" alt="Logo" width={100} height={100} className="drop-shadow-[0_0_15px_rgba(255,215,0,0.5)]" />
+                    <div>
+                        <h1 className="text-6xl font-black text-yellow-400 font-headline tracking-tighter">MÁSTER PÁDEL</h1>
+                        <p className="text-slate-400 text-xl font-bold tracking-[0.2em] uppercase mt-1">Live Scoreboard System</p>
+                    </div>
+                </div>
+                <div className="flex gap-4">
+                    {['standings', 'ranking', 'publicidad'].map(v => (
+                        <button key={v} onClick={() => setView(v as any)} className={cn("px-6 py-3 rounded-full text-sm font-black uppercase tracking-widest transition-all", view === v ? "bg-primary text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]" : "bg-slate-800 text-slate-500")}>
+                            {v === 'standings' ? 'Marcadores' : v === 'ranking' ? 'Rankings' : 'Publicidad'}
+                        </button>
+                    ))}
+                </div>
+            </header>
+
+            <main className="flex-grow overflow-hidden">
+                {view === 'standings' && <ProyectorLiveStandings />}
+                {view === 'ranking' && (
+                    <div className="grid grid-cols-5 gap-4 h-full">
+                        {cats.map(c => <ProyectorGeneralRankingColumn key={c} category={c} players={playersByCat[c] || []} />)}
+                    </div>
+                )}
+                {view === 'publicidad' && (
+                    <div className="h-full flex flex-col items-center justify-center bg-slate-900/30 rounded-3xl border border-slate-800 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-radial-gradient opacity-20"></div>
+                        <Image src="https://i.postimg.cc/jd36nffT/Master-padel-(1).png" alt="Big Logo" width={600} height={600} className="relative z-10 animate-pulse drop-shadow-[0_0_50px_rgba(255,215,0,0.3)]" />
+                        <h2 className="text-8xl font-black text-white mt-12 font-headline relative z-10 tracking-widest">BIENVENIDOS</h2>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}

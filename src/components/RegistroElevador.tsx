@@ -249,7 +249,7 @@ const RegistroElevador = () => {
         const stats: Record<string, any> = {};
         const nCourts = selectedMatch.rounds[0]?.courts.length || 0;
 
-        // Inicialización basada en configuración y Ronda 0
+        // Inicialización basada en configuración y Ronda 1 (pista de inicio)
         if (isPairs) {
             selectedMatch.fixedPairs.forEach(p => stats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 1 });
             selectedMatch.rounds[0]?.courts.forEach(c => {
@@ -273,9 +273,6 @@ const RegistroElevador = () => {
 
         // Cálculo acumulado de todas las rondas con marcadores
         selectedMatch.rounds.forEach((round) => {
-            const hasScores = round.courts.some(c => c.match && c.match.score1 !== null);
-            if (!hasScores) return;
-
             round.courts.forEach(court => {
                 const m = court.match; if (!m || m.score1 === null || m.score2 === null) return;
                 const t1W = m.score1! > m.score2!;
@@ -285,11 +282,27 @@ const RegistroElevador = () => {
                 if (isPairs) {
                     const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
                     const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
-                    if (stats[p1Id]) { stats[p1Id].pointsScored += m.score1!; stats[p1Id].finalCourt = t1Res; if (t1W) stats[p1Id].gamesWon++; else stats[p1Id].gamesLost++; }
-                    if (stats[p2Id]) { stats[p2Id].pointsScored += m.score2!; stats[p2Id].finalCourt = t2Res; if (!t1W) stats[p2Id].gamesWon++; else stats[p2Id].gamesLost++; }
+                    if (stats[p1Id]) { 
+                        stats[p1Id].pointsScored += m.score1!; 
+                        stats[p1Id].finalCourt = t1Res; 
+                        if (t1W) stats[p1Id].gamesWon++; else stats[p1Id].gamesLost++; 
+                    }
+                    if (stats[p2Id]) { 
+                        stats[p2Id].pointsScored += m.score2!; 
+                        stats[p2Id].finalCourt = t2Res; 
+                        if (!t1W) stats[p2Id].gamesWon++; else stats[p2Id].gamesLost++; 
+                    }
                 } else {
-                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if (stats[id]) { stats[id].pointsScored += m.score1!; stats[id].finalCourt = t1Res; if (t1W) stats[id].gamesWon++; else stats[id].gamesLost++; }});
-                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if (stats[id]) { stats[id].pointsScored += m.score2!; stats[id].finalCourt = t2Res; if (!t1W) stats[id].gamesWon++; else stats[id].gamesLost++; }});
+                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if (stats[id]) { 
+                        stats[id].pointsScored += m.score1!; 
+                        stats[id].finalCourt = t1Res; 
+                        if (t1W) stats[id].gamesWon++; else stats[id].gamesLost++; 
+                    }});
+                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if (stats[id]) { 
+                        stats[id].pointsScored += m.score2!; 
+                        stats[id].finalCourt = t2Res; 
+                        if (!t1W) stats[id].gamesWon++; else stats[id].gamesLost++; 
+                    }});
                 }
             });
         });
@@ -312,7 +325,17 @@ const RegistroElevador = () => {
             if (isPairs) {
                 const results: DailyPairResult[] = sortedRanking.map(r => {
                     const pair = selectedMatch.fixedPairs.find(p => p.id === r.playerId);
-                    return { pairId: r.playerId, name: r.name, player1: { id: pair!.player1.id, name: pair!.player1.name }, player2: { id: pair!.player2.id, name: pair!.player2.name }, points: r.pointsScored, g: r.gamesWon, e: 0, p: r.gamesLost, finalCourt: r.finalCourt };
+                    return { 
+                        pairId: r.playerId, 
+                        name: r.name, 
+                        player1: { id: pair!.player1.id, name: pair!.player1.name }, 
+                        player2: { id: pair!.player2.id, name: pair!.player2.name }, 
+                        points: r.pointsScored, 
+                        g: r.gamesWon, 
+                        e: 0, 
+                        p: r.gamesLost, 
+                        finalCourt: r.finalCourt 
+                    };
                 });
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
@@ -322,7 +345,16 @@ const RegistroElevador = () => {
                     batch.update(doc(db, 'players', results[i].player2.id), { [field]: increment(1) });
                 }
             } else {
-                const results: DailyElevadorResult[] = sortedRanking.map(r => ({ playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: 0, pointsDifference: r.pointsScored, finalCourt: r.finalCourt }));
+                const results: DailyElevadorResult[] = sortedRanking.map(r => ({ 
+                    playerId: r.playerId, 
+                    name: r.name, 
+                    gamesWon: r.gamesWon, 
+                    gamesLost: r.gamesLost, 
+                    pointsScored: r.pointsScored, 
+                    pointsReceived: 0, 
+                    pointsDifference: r.pointsScored, 
+                    finalCourt: r.finalCourt 
+                }));
                 const newDoc = doc(collection(db, "dailyElevadorEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {

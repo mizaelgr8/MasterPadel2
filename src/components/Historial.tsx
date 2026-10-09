@@ -279,7 +279,9 @@ const Historial = () => {
                                     <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
                                     <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
                                     <TableCell className="text-center font-bold text-blue-400">{pair.points}</TableCell>
-                                    <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt || '-'}</TableCell>
+                                    <TableCell className="text-center font-bold text-primary">
+                                        {pair.finalCourt ? `Pista ${pair.finalCourt}` : 'Pista -'}
+                                    </TableCell>
                                     </TableRow>
                                 ))}
                                 </TableBody>
@@ -314,7 +316,9 @@ const Historial = () => {
                                             <TableCell>{p.name}</TableCell>
                                             <TableCell className="text-center">{p.gamesWon}/{p.gamesLost}</TableCell>
                                             <TableCell className="text-center font-bold text-orange-400">{p.pointsScored}</TableCell>
-                                            <TableCell className="text-center font-bold text-primary">Pista {p.finalCourt || '-'}</TableCell>
+                                            <TableCell className="text-center font-bold text-primary">
+                                                {p.finalCourt ? `Pista ${p.finalCourt}` : 'Pista -'}
+                                            </TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
