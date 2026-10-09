@@ -301,6 +301,7 @@ const RegistroElevador = () => {
         
         const isPairs = selectedMatch.modality === 'elevadorParejas';
         const stats: Record<string, any> = {};
+        const nCourts = selectedMatch.rounds[0].courts.length;
 
         if (isPairs) {
             selectedMatch.fixedPairs.forEach(p => stats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 1 });
@@ -313,18 +314,20 @@ const RegistroElevador = () => {
                 const m = court.match;
                 if (!m || m.score1 === null || m.score2 === null) return;
                 const t1Wins = m.score1! > m.score2!;
+                const t1ResultingCourt = t1Wins ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
+                const t2ResultingCourt = !t1Wins ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
                 
                 if (isPairs) {
                     const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
                     const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
                     if (stats[p1Id]) {
                         stats[p1Id].pointsScored += m.score1!;
-                        stats[p1Id].finalCourt = court.courtNumber;
+                        stats[p1Id].finalCourt = t1ResultingCourt;
                         if (t1Wins) stats[p1Id].gamesWon++; else stats[p1Id].gamesLost++;
                     }
                     if (stats[p2Id]) {
                         stats[p2Id].pointsScored += m.score2!;
-                        stats[p2Id].finalCourt = court.courtNumber;
+                        stats[p2Id].finalCourt = t2ResultingCourt;
                         if (!t1Wins) stats[p2Id].gamesWon++; else stats[p2Id].gamesLost++;
                     }
                 } else {
@@ -333,14 +336,14 @@ const RegistroElevador = () => {
                     t1Ids.forEach(id => {
                         if (stats[id]) {
                             stats[id].pointsScored += m.score1!;
-                            stats[id].finalCourt = court.courtNumber;
+                            stats[id].finalCourt = t1ResultingCourt;
                             if (t1Wins) stats[id].gamesWon++; else stats[id].gamesLost++;
                         }
                     });
                     t2Ids.forEach(id => {
                         if (stats[id]) {
                             stats[id].pointsScored += m.score2!;
-                            stats[id].finalCourt = court.courtNumber;
+                            stats[id].finalCourt = t2ResultingCourt;
                             if (!t1Wins) stats[id].gamesWon++; else stats[id].gamesLost++;
                         }
                     });
@@ -486,7 +489,7 @@ const RegistroElevador = () => {
                                     <TableCell>{i+1}</TableCell>
                                     <TableCell className='text-[11px] uppercase font-bold'>{p.name}</TableCell>
                                     <TableCell className="text-center text-xs">{p.gamesWon}/{p.gamesLost}</TableCell>
-                                    <TableCell className="text-center text-xs">{p.finalCourt}</TableCell>
+                                    <TableCell className="text-center text-xs">Pista {p.finalCourt}</TableCell>
                                     <TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell>
                                 </TableRow>
                             ))}
