@@ -107,16 +107,20 @@ const ProyectorLiveStandings = () => {
             if (isPairs) ongoingElevador.fixedPairs.forEach(p => stats[p.id] = { id: p.id, name: p.player1.name + ' & ' + p.player2.name, g: 0, p: 0, points: 0, court: 0 });
             else ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, g: 0, p: 0, points: 0, court: 0 });
 
+            // Inicializar con la cancha de la primera ronda
             ongoingElevador.rounds[0]?.courts.forEach(c => {
-                 if(isPairs) {
-                     const p1Id = [c.match!.team1.player1.id, c.match!.team1.player2.id].sort().join('-');
-                     const p2Id = [c.match!.team2.player1.id, c.match!.team2.player2.id].sort().join('-');
-                     if(stats[p1Id]) stats[p1Id].court = c.courtNumber; if(stats[p2Id]) stats[p2Id].court = c.courtNumber;
-                 } else {
-                     [c.match!.team1.player1.id, c.match!.team1.player2.id, c.match!.team2.player1.id, c.match!.team2.player2.id].forEach(id => { if(stats[id]) stats[id].court = c.courtNumber; });
+                 if (c.match) {
+                     if(isPairs) {
+                         const p1Id = [c.match.team1.player1.id, c.match.team1.player2.id].sort().join('-');
+                         const p2Id = [c.match.team2.player1.id, c.match.team2.player2.id].sort().join('-');
+                         if(stats[p1Id]) stats[p1Id].court = c.courtNumber; if(stats[p2Id]) stats[p2Id].court = c.courtNumber;
+                     } else {
+                         [c.match.team1.player1.id, c.match.team1.player2.id, c.match.team2.player1.id, c.match.team2.player2.id].forEach(id => { if(stats[id]) stats[id].court = c.courtNumber; });
+                     }
                  }
             });
 
+            // Procesar todas las rondas para actualizar la cancha final y estadísticas
             ongoingElevador.rounds.forEach(round => {
                 round.courts.forEach(court => {
                     const m = court.match; if (!m || m.score1 === null || m.score2 === null) return;
@@ -136,9 +140,10 @@ const ProyectorLiveStandings = () => {
                 });
             });
             
-            return Object.values(stats).sort((a, b) => {
+            // Ordenar por Victorias -> Cancha Final -> Puntos
+            return Object.values(stats).sort((a: any, b: any) => {
                 if (b.g !== a.g) return b.g - a.g;
-                if (a.court !== b.court) return a.court - b.court; // Cancha 1 es mejor que Cancha 2
+                if (a.court !== b.court) return a.court - b.court;
                 return b.points - a.points;
             });
         }
@@ -154,13 +159,13 @@ const ProyectorLiveStandings = () => {
             <CardContent className="p-0">
                 <Table>
                     <TableHeader className="bg-slate-900/80"><TableRow className="border-slate-700 h-14"><TableHead className="w-16 text-xl text-slate-400 text-center">#</TableHead><TableHead className="text-xl text-slate-400">Nombre</TableHead><TableHead className="text-center text-xl text-slate-400">G</TableHead><TableHead className="text-center text-xl text-slate-400">P</TableHead><TableHead className="text-center text-xl text-slate-400">Cancha</TableHead><TableHead className="text-center text-xl text-slate-400">Pts</TableHead></TableRow></TableHeader>
-                    <TableBody>{results.map((row, index) => (
+                    <TableBody>{results.map((row: any, index) => (
                         <TableRow key={index} className="border-slate-800 h-16 text-white hover:bg-slate-800/50 transition-colors">
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
                             <TableCell className="font-bold text-xl uppercase truncate max-w-[400px]">{row.name}</TableCell>
                             <TableCell className="text-center font-bold text-green-400 text-2xl">{row.g}</TableCell>
                             <TableCell className="text-center font-bold text-red-400 text-2xl">{row.p}</TableCell>
-                            <TableCell className="text-center font-bold text-blue-300 text-xl">Pista {row.court}</TableCell>
+                            <TableCell className="text-center font-bold text-blue-300 text-xl">Pista {row.court || '-'}</TableCell>
                             <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                         </TableRow>
                     ))}</TableBody>
@@ -216,9 +221,9 @@ const ProyectorOngoingMatch = () => {
                                 <AccordionTrigger className={cn("text-2xl text-white font-bold", round.isBonus && "text-yellow-400")}>Ronda {ri + 1} {round.isBonus && '(Bonus)'}</AccordionTrigger>
                                 <AccordionContent><div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                                     {round.matches.map((match, mi) => (
-                                        <div key={mi} className='flex flex-col gap-2 p-4 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
+                                        <div key={mi} className="space-y-1">
                                             <div className="text-lg font-black text-blue-400 uppercase tracking-widest text-center border-b border-slate-700/50 pb-1 mb-1">Cancha {match.courtNumber || mi + 1}</div>
-                                            <div className='flex items-center gap-3'>
+                                            <div className='flex items-center gap-3 p-4 bg-slate-800 rounded-lg border border-slate-600 shadow-inner'>
                                                 <div className='flex-1 flex flex-col items-end gap-1 justify-center shrink-0 min-h-[100px]'>
                                                     <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player1.name}</span>
                                                     <span className='text-2xl font-black text-slate-200 uppercase text-right leading-tight'>{match.team1.player2.name}</span>

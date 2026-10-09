@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, query, where, doc, onSnapshot } from "firebase/firestore";
-import type { DailyEvent, MonthlyRanking, DailyPairEvent, DailyElevadorEvent, Category } from "@/types";
+import type { DailyEvent, MonthlyRanking, DailyPairEvent, DailyElevadorEvent, Category, DailyPairResult, DailyElevadorResult } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -83,13 +83,12 @@ const Historial = () => {
         };
 
         const [individualDocs, pairDocs, elevadorDocs] = await Promise.all([
-            fetchByDateAndCategory<DailyPairEvent>("dailyEvents"), // Ajuste de tipo genérico temporal si fuera necesario
+            fetchByDateAndCategory<DailyEvent>("dailyEvents"),
             fetchByDateAndCategory<DailyPairEvent>("dailyPairEvents"),
             fetchByDateAndCategory<DailyElevadorEvent>("dailyElevadorEvents")
         ]);
 
-        // Fix para Daily Individual (6 Loco)
-        setDailyIndividualEvents((individualDocs as any[]).map(e => ({
+        setDailyIndividualEvents(individualDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => b.points - a.points)
         })));
@@ -97,12 +96,12 @@ const Historial = () => {
         setDailyPairEvents(pairDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => {
-                // LÓGICA DE ORO PARA ELEVADOR PAREJAS (Prioridad: Victorias > Cancha > Puntos)
+                // Prioridad Elevador: Victorias -> Cancha -> Puntos
                 if (e.modality === 'elevadorParejas') {
-                    if (b.g !== a.g) return b.g - a.g; 
+                    if ((b.g || 0) !== (a.g || 0)) return (b.g || 0) - (a.g || 0); 
                     const cA = a.finalCourt || 99;
                     const cB = b.finalCourt || 99;
-                    if (cA !== cB) return cA - cB; // Menor número de cancha es mejor
+                    if (cA !== cB) return cA - cB;
                 }
                 return b.points - a.points; 
             })
@@ -111,8 +110,10 @@ const Historial = () => {
         setDailyElevadorEvents(elevadorDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => {
-                if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-                if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt;
+                if ((b.gamesWon || 0) !== (a.gamesWon || 0)) return (b.gamesWon || 0) - (a.gamesWon || 0);
+                const cA = a.finalCourt || 99;
+                const cB = b.finalCourt || 99;
+                if (cA !== cB) return cA - cB;
                 return b.pointsScored - a.pointsScored;
             })
         })));
@@ -315,7 +316,7 @@ const Historial = () => {
                                             <TableCell>{p.name}</TableCell>
                                             <TableCell className="text-center">{p.gamesWon}/{p.gamesLost}</TableCell>
                                             <TableCell className="text-center font-bold text-orange-400">{p.pointsScored}</TableCell>
-                                            <TableCell className="text-center font-bold text-primary">Pista {p.finalCourt}</TableCell>
+                                            <TableCell className="text-center font-bold text-primary">Pista {p.finalCourt || '-'}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>
@@ -332,7 +333,7 @@ const Historial = () => {
                 <Info className="h-4 w-4 text-blue-400" />
                 <AlertTitle className="text-blue-300">Historial de Rankings Mensuales</AlertTitle>
                 <AlertDescription className="text-blue-400/80">
-                    Esta vista muestra el historial de rankings mensuales para la modalidad individual. El historial de parejas no está disponible aquí, se consulta desde el Ranking General.
+                    Esta vista muestra el historial de rankings mensuales para la modalidad individual.
                 </AlertDescription>
             </Alert>
             <div className="my-4">

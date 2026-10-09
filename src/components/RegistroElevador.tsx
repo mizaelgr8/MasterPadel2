@@ -249,22 +249,29 @@ const RegistroElevador = () => {
         const stats: Record<string, any> = {};
         const nCourts = selectedMatch.rounds[0]?.courts.length || 0;
 
-        if (isPairs) selectedMatch.fixedPairs.forEach(p => stats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 0, initialCourt: 0 });
-        else selectedMatch.selectedPlayers.forEach(p => stats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 0, initialCourt: 0 });
+        // Inicialización basada en configuración y Ronda 0
+        if (isPairs) {
+            selectedMatch.fixedPairs.forEach(p => stats[p.id] = { playerId: p.id, name: p.player1.name + ' & ' + p.player2.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 0, initialCourt: 0 });
+            selectedMatch.rounds[0]?.courts.forEach(c => {
+                if (c.match) {
+                    const p1Id = [c.match.team1.player1.id, c.match.team1.player2.id].sort().join('-');
+                    const p2Id = [c.match.team2.player1.id, c.match.team2.player2.id].sort().join('-');
+                    if (stats[p1Id]) { stats[p1Id].initialCourt = c.courtNumber; stats[p1Id].finalCourt = c.courtNumber; }
+                    if (stats[p2Id]) { stats[p2Id].initialCourt = c.courtNumber; stats[p2Id].finalCourt = c.courtNumber; }
+                }
+            });
+        } else {
+            selectedMatch.selectedPlayers.forEach(p => stats[p.id] = { playerId: p.id, name: p.name, gamesWon: 0, gamesLost: 0, pointsScored: 0, finalCourt: 0, initialCourt: 0 });
+            selectedMatch.rounds[0]?.courts.forEach(c => {
+                if (c.match) {
+                    [c.match.team1.player1.id, c.match.team1.player2.id, c.match.team2.player1.id, c.match.team2.player2.id].forEach(id => {
+                        if (stats[id]) { stats[id].initialCourt = c.courtNumber; stats[id].finalCourt = c.courtNumber; }
+                    });
+                }
+            });
+        }
 
-        selectedMatch.rounds[0]?.courts.forEach(c => {
-             if(isPairs) {
-                 const p1Id = [c.match!.team1.player1.id, c.match!.team1.player2.id].sort().join('-');
-                 const p2Id = [c.match!.team2.player1.id, c.match!.team2.player2.id].sort().join('-');
-                 if(stats[p1Id]) { stats[p1Id].initialCourt = c.courtNumber; stats[p1Id].finalCourt = c.courtNumber; }
-                 if(stats[p2Id]) { stats[p2Id].initialCourt = c.courtNumber; stats[p2Id].finalCourt = c.courtNumber; }
-             } else {
-                 [c.match!.team1.player1.id, c.match!.team1.player2.id, c.match!.team2.player1.id, c.match!.team2.player2.id].forEach(id => {
-                     if(stats[id]) { stats[id].initialCourt = c.courtNumber; stats[id].finalCourt = c.courtNumber; }
-                 });
-             }
-        });
-
+        // Cálculo acumulado de todas las rondas con marcadores
         selectedMatch.rounds.forEach((round) => {
             round.courts.forEach(court => {
                 const m = court.match; if (!m || m.score1 === null || m.score2 === null) return;
@@ -284,9 +291,12 @@ const RegistroElevador = () => {
             });
         });
 
+        // Orden de clasificación definitivo: Victorias -> Cancha Final -> Puntos
         return Object.values(stats).sort((a: any, b: any) => {
             if (b.gamesWon !== a.gamesWon) return b.gamesWon - a.gamesWon;
-            if (a.finalCourt !== b.finalCourt) return a.finalCourt - b.finalCourt; // Cancha 1 > Cancha 2
+            const courtA = a.finalCourt || a.initialCourt || 99;
+            const courtB = b.finalCourt || b.initialCourt || 99;
+            if (courtA !== courtB) return courtA - courtB;
             return b.pointsScored - a.pointsScored;
         });
     }, [selectedMatch]);
@@ -299,7 +309,7 @@ const RegistroElevador = () => {
             if (isPairs) {
                 const results: DailyPairResult[] = sortedRanking.map(r => {
                     const pair = selectedMatch.fixedPairs.find(p => p.id === r.playerId);
-                    return { pairId: r.playerId, name: r.name, player1: { id: pair!.player1.id, name: pair!.player1.name }, player2: { id: pair!.player2.id, name: pair!.player2.name }, points: r.pointsScored, g: r.gamesWon, e: 0, p: r.gamesLost, finalCourt: r.finalCourt };
+                    return { pairId: r.playerId, name: r.name, player1: { id: pair!.player1.id, name: pair!.player1.name }, player2: { id: pair!.player2.id, name: pair!.player2.name }, points: r.pointsScored, g: r.gamesWon, e: 0, p: r.gamesLost, finalCourt: r.finalCourt || r.initialCourt };
                 });
                 const newDoc = doc(collection(db, "dailyPairEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevadorParejas', category });
@@ -309,7 +319,7 @@ const RegistroElevador = () => {
                     batch.update(doc(db, 'players', results[i].player2.id), { [field]: increment(1) });
                 }
             } else {
-                const results: DailyElevadorResult[] = sortedRanking.map(r => ({ playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: 0, pointsDifference: r.pointsScored, finalCourt: r.finalCourt }));
+                const results: DailyElevadorResult[] = sortedRanking.map(r => ({ playerId: r.playerId, name: r.name, gamesWon: r.gamesWon, gamesLost: r.gamesLost, pointsScored: r.pointsScored, pointsReceived: 0, pointsDifference: r.pointsScored, finalCourt: r.finalCourt || r.initialCourt }));
                 const newDoc = doc(collection(db, "dailyElevadorEvents"));
                 batch.set(newDoc, { id: newDoc.id, date: selectedMatch.date, name: selectedMatch.eventName, results, modality: 'elevador', category });
                 for (let i = 0; i < Math.min(results.length, 3); i++) {
