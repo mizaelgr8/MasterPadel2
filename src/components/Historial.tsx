@@ -96,13 +96,14 @@ const Historial = () => {
         setDailyPairEvents(pairDocs.map(e => ({
             ...e,
             results: [...e.results].sort((a, b) => {
+                // LÓGICA CRÍTICA DE CLASIFICACIÓN PARA ELEVADOR PAREJAS
                 if (e.modality === 'elevadorParejas') {
-                    if (b.g !== a.g) return b.g - a.g;
+                    if (b.g !== a.g) return b.g - a.g; // 1º Victorias
                     const cA = a.finalCourt || 99;
                     const cB = b.finalCourt || 99;
-                    if (cA !== cB) return cA - cB;
+                    if (cA !== cB) return cA - cB; // 2º Cancha Final (menor es mejor)
                 }
-                return b.points - a.points;
+                return b.points - a.points; // 3º Puntos
             })
         })));
 
@@ -266,6 +267,7 @@ const Historial = () => {
                                     <TableHead>Pareja</TableHead>
                                     <TableHead className="text-center">G/E/P</TableHead>
                                     <TableHead className="text-center">Puntos</TableHead>
+                                    {event.modality === 'elevadorParejas' && <TableHead className="text-center">Cancha Final</TableHead>}
                                 </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -275,6 +277,9 @@ const Historial = () => {
                                     <TableCell>{pair.player1.name} & {pair.player2.name}</TableCell>
                                     <TableCell className="text-center">{`${pair.g}/${pair.e}/${pair.p}`}</TableCell>
                                     <TableCell className="text-center font-bold text-blue-400">{pair.points}</TableCell>
+                                    {event.modality === 'elevadorParejas' && (
+                                        <TableCell className="text-center font-bold text-primary">Pista {pair.finalCourt}</TableCell>
+                                    )}
                                     </TableRow>
                                 ))}
                                 </TableBody>
@@ -309,7 +314,7 @@ const Historial = () => {
                                             <TableCell>{p.name}</TableCell>
                                             <TableCell className="text-center">{p.gamesWon}/{p.gamesLost}</TableCell>
                                             <TableCell className="text-center font-bold text-orange-400">{p.pointsScored}</TableCell>
-                                            <TableCell className="text-center">{p.finalCourt}</TableCell>
+                                            <TableCell className="text-center font-bold text-primary">Pista {p.finalCourt}</TableCell>
                                         </TableRow>
                                     ))}
                                 </TableBody>

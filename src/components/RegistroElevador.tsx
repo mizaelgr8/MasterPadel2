@@ -396,7 +396,7 @@ const RegistroElevador = () => {
                                     <TableCell>{i+1}</TableCell>
                                     <TableCell className='text-[10px] uppercase font-bold'>{p.name}</TableCell>
                                     <TableCell className="text-center text-xs">{p.gamesWon}/{p.gamesLost}</TableCell>
-                                    <TableCell className="text-center text-xs">Pista {p.finalCourt || p.initialCourt}</TableCell>
+                                    <TableCell className="text-center text-xs font-bold text-primary">Pista {p.finalCourt || p.initialCourt}</TableCell>
                                     <TableCell className="text-center text-primary text-xs font-bold">{p.pointsScored}</TableCell>
                                 </TableRow>
                             ))}
