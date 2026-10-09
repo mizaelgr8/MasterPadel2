@@ -82,66 +82,59 @@ const ProyectorLiveStandings = () => {
 
     const results = useMemo(() => {
         if (ongoingMatch) {
-            const isIndividual = ongoingMatch.modality === '6loco';
+            const isInd = ongoingMatch.modality === '6loco';
             const stats: Record<string, any> = {};
-            if (isIndividual) ongoingMatch.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0 });
-            else ongoingMatch.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0 });
+            if (isInd) ongoingMatch.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, p: 0, court: 1 });
+            else ongoingMatch.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, p: 0, court: 1 });
             
             ongoingMatch.rounds?.forEach(round => round.matches.forEach(match => {
                 if (match.score1 === null || match.score2 === null) return;
-                if (isIndividual) {
-                    [match.team1.player1.id, match.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += match.score1!; if(match.score1! > match.score2!) stats[id].g++; }});
-                    [match.team2.player1.id, match.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += match.score2!; if(match.score2! > match.score1!) stats[id].g++; }});
+                const t1W = match.score1! > match.score2!;
+                if (isInd) {
+                    [match.team1.player1.id, match.team1.player2.id].forEach(id => { if(stats[id]){ stats[id].points += match.score1!; if(t1W) stats[id].g++; else stats[id].p++; }});
+                    [match.team2.player1.id, match.team2.player2.id].forEach(id => { if(stats[id]){ stats[id].points += match.score2!; if(!t1W) stats[id].g++; else stats[id].p++; }});
                 } else {
-                    if (stats[match.team1.id]) { stats[match.team1.id].points += match.score1!; if(match.score1! > match.score2!) stats[match.team1.id].g++; }
-                    if (stats[match.team2.id]) { stats[match.team2.id].points += match.score2!; if(match.score2! > match.score1!) stats[match.team2.id].g++; }
+                    if (stats[match.team1.id]) { stats[match.team1.id].points += match.score1!; if(t1W) stats[match.team1.id].g++; else stats[match.team1.id].p++; }
+                    if (stats[match.team2.id]) { stats[match.team2.id].points += match.score2!; if(!t1W) stats[match.team2.id].g++; else stats[match.team2.id].p++; }
                 }
             }));
             return Object.values(stats).sort((a, b) => b.points - a.points || b.g - a.g);
         } else if (ongoingElevador) {
-            const stats: Record<string, any> = {};
             const isPairs = ongoingElevador.modality === 'elevadorParejas';
-            const nCourts = ongoingElevador.rounds[0]?.courts.length || 1;
+            const nCourts = ongoingElevador.rounds[0]?.courts.length || 0;
+            const stats: Record<string, any> = {};
 
-            if (isPairs) {
-                ongoingElevador.fixedPairs.forEach(pair => stats[pair.id] = { id: pair.id, name: pair.player1.name + ' & ' + pair.player2.name, points: 0, g: 0, p: 0, court: 1 });
-            } else {
-                ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, points: 0, g: 0, p: 0, court: 1 });
-            }
+            if (isPairs) ongoingElevador.fixedPairs.forEach(p => stats[p.id] = { id: p.id, name: p.player1.name + ' & ' + p.player2.name, g: 0, p: 0, points: 0, court: 0 });
+            else ongoingElevador.selectedPlayers.forEach(p => stats[p.id] = { id: p.id, name: p.name, g: 0, p: 0, points: 0, court: 0 });
 
-            ongoingElevador.rounds?.forEach(round => round.courts.forEach(court => {
-                if (!court.match || court.match.score1 === null || court.match.score2 === null) return;
-                const m = court.match;
-                const t1Wins = m.score1! > m.score2!;
-                const t1ResCourt = t1Wins ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
-                const t2ResCourt = !t1Wins ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
-                
-                if (isPairs) {
-                    const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
-                    const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
-                    if (stats[p1Id]) { 
-                        stats[p1Id].points += m.score1!; 
-                        stats[p1Id].court = t1ResCourt; 
-                        if(t1Wins) stats[p1Id].g++; else stats[p1Id].p++;
+            ongoingElevador.rounds[0]?.courts.forEach(c => {
+                 if(isPairs) {
+                     const p1Id = [c.match!.team1.player1.id, c.match!.team1.player2.id].sort().join('-');
+                     const p2Id = [c.match!.team2.player1.id, c.match!.team2.player2.id].sort().join('-');
+                     if(stats[p1Id]) stats[p1Id].court = c.courtNumber; if(stats[p2Id]) stats[p2Id].court = c.courtNumber;
+                 } else {
+                     [c.match!.team1.player1.id, c.match!.team1.player2.id, c.match!.team2.player1.id, c.match!.team2.player2.id].forEach(id => { if(stats[id]) stats[id].court = c.courtNumber; });
+                 }
+            });
+
+            ongoingElevador.rounds.forEach(round => {
+                round.courts.forEach(court => {
+                    const m = court.match; if (!m || m.score1 === null || m.score2 === null) return;
+                    const t1W = m.score1! > m.score2!;
+                    const t1Res = t1W ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
+                    const t2Res = !t1W ? Math.max(1, court.courtNumber - 1) : Math.min(nCourts, court.courtNumber + 1);
+                    
+                    if (isPairs) {
+                        const p1Id = [m.team1.player1.id, m.team1.player2.id].sort().join('-');
+                        const p2Id = [m.team2.player1.id, m.team2.player2.id].sort().join('-');
+                        if (stats[p1Id]) { stats[p1Id].points += m.score1!; stats[p1Id].court = t1Res; if (t1W) stats[p1Id].g++; else stats[p1Id].p++; }
+                        if (stats[p2Id]) { stats[p2Id].points += m.score2!; stats[p2Id].court = t2Res; if (!t1W) stats[p2Id].g++; else stats[p2Id].p++; }
+                    } else {
+                        [m.team1.player1.id, m.team1.player2.id].forEach(id => { if (stats[id]) { stats[id].points += m.score1!; stats[id].court = t1Res; if (t1W) stats[id].g++; else stats[id].p++; }});
+                        [m.team2.player1.id, m.team2.player2.id].forEach(id => { if (stats[id]) { stats[id].points += m.score2!; stats[id].court = t2Res; if (!t1W) stats[id].g++; else stats[id].p++; }});
                     }
-                    if (stats[p2Id]) { 
-                        stats[p2Id].points += m.score2!; 
-                        stats[p2Id].court = t2ResCourt; 
-                        if(!t1Wins) stats[p2Id].g++; else stats[p2Id].p++;
-                    }
-                } else {
-                    [m.team1.player1.id, m.team1.player2.id].forEach(id => { if(stats[id]){ 
-                        stats[id].points += m.score1!; 
-                        stats[id].court = t1ResCourt; 
-                        if(t1Wins) stats[id].g++; else stats[id].p++;
-                    }});
-                    [m.team2.player1.id, m.team2.player2.id].forEach(id => { if(stats[id]){ 
-                        stats[id].points += m.score2!; 
-                        stats[id].court = t2ResCourt; 
-                        if(!t1Wins) stats[id].g++; else stats[id].p++;
-                    }});
-                }
-            }));
+                });
+            });
             
             return Object.values(stats).sort((a, b) => {
                 if (b.g !== a.g) return b.g - a.g;
@@ -166,7 +159,7 @@ const ProyectorLiveStandings = () => {
                             <TableCell className="font-bold text-2xl text-center">{index + 1}</TableCell>
                             <TableCell className="font-bold text-xl uppercase truncate max-w-[400px]">{row.name}</TableCell>
                             <TableCell className="text-center font-bold text-green-400 text-2xl">{row.g}</TableCell>
-                            <TableCell className="text-center font-bold text-red-400 text-2xl">{row.p || 0}</TableCell>
+                            <TableCell className="text-center font-bold text-red-400 text-2xl">{row.p}</TableCell>
                             <TableCell className="text-center font-bold text-blue-300 text-xl">Pista {row.court}</TableCell>
                             <TableCell className="text-center font-black text-primary text-3xl">{row.points}</TableCell>
                         </TableRow>
